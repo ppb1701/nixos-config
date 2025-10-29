@@ -5,8 +5,7 @@
     ./hardware-configuration.nix
     ./modules/adguard-home.nix
     ./modules/networking.nix
-    ./modules/rustdesk.nix
-    <home-manager/nixos>
+    # ./modules/rustdesk.nix  # Removed: Build error in NixOS 25.05 (cargo-auditable panic)
   ];
 
   # Bootloader
@@ -36,7 +35,7 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # X11 and Desktop Environment (for RustDesk headless)
+  # X11 and Desktop Environment (minimal for occasional local access)
   services.xserver = {
     enable = true;
     displayManager.lightdm.enable = true;
@@ -48,7 +47,7 @@
     };
   };
 
-  # Auto-login for headless operation
+  # Auto-login for local console access
   services.displayManager.autoLogin = {
     enable = true;
     user = "ppb1701";
@@ -70,28 +69,52 @@
   # Keyring
   services.gnome.gnome-keyring.enable = true;
 
-  # SSH
-  services.openssh.enable = true;
+  # SSH (primary remote access method)
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "no";  # Security: disable root login
+      PasswordAuthentication = true;  # Can disable after setting up SSH keys
+    };
+  };
 
   # User definition
   users.users.ppb1701 = {
     isNormalUser = true;
     description = "Patrick Boyd";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" ];  # wheel = sudo access
+    # Optional: Add SSH public key for passwordless login
+    # openssh.authorizedKeys.keys = [
+    #   "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-key-here"
+    # ];
   };
 
-  # System packages (minimal - most moved to Home Manager)
+  # System packages
   environment.systemPackages = with pkgs; [
     vim
     wget
     git
     htop
-  ];
+    btop
+    neofetch
+    gitui
 
-  # Home Manager integration
-  home-manager.users.ppb1701 = import ./home/ppb1701.nix;
-  home-manager.useGlobalPkgs = true;
-  home-manager.useUserPackages = true;
+    # Desktop packages (for occasional local access)
+    vivaldi
+    lxde.lxtask
+    lxqt.screengrab
+    lxqt.pavucontrol-qt
+    lxqt.qterminal
+    lxqt.pcmanfm-qt
+    lxmenu-data
+    menu-cache
+    lxqt.lximage-qt
+    lxqt.lxqt-archiver
+    lxqt.lxqt-sudo
+    libsForQt5.breeze-icons
+    networkmanagerapplet
+    feh
+  ];
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
