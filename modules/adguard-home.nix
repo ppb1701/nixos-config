@@ -3,26 +3,19 @@
 {
   services.adguardhome = {
     enable = true;
-
-    # Make settings immutable (fully declarative)
     mutableSettings = false;
-
-    # Open firewall ports automatically
     openFirewall = true;
 
     settings = {
-      # Schema version (important!)
       schema_version = 28;
 
-      # Web interface - accessible from network
+      # Web interface - works for both VM and physical machine
       http.address = "0.0.0.0:3000";
 
-      # DNS configuration
       dns = {
         bind_hosts = [ "0.0.0.0" ];
         port = 53;
 
-        # Upstream DNS servers
         upstream_dns = [
           "https://dns.cloudflare.com/dns-query"
           "https://dns.quad9.net/dns-query"
@@ -30,23 +23,21 @@
           "149.112.112.112"
         ];
 
-        # Bootstrap DNS (for resolving DoH servers)
         bootstrap_dns = [
           "9.9.9.10"
           "149.112.112.10"
         ];
 
-        # Client identification settings
+        # Client identification
         resolve_clients = true;
         use_private_ptr_resolvers = true;
 
-        # Point to your router for client name resolution
+        # Works on physical machine, ignored in VM
         local_ptr_upstreams = [
           "192.168.1.1"  # Your ASUS router
         ];
       };
 
-      # Client identification sources
       clients = {
         runtime_sources = {
           whois = true;
@@ -57,7 +48,6 @@
         };
       };
 
-      # Filtering settings
       filtering = {
         protection_enabled = true;
         filtering_enabled = true;
@@ -65,7 +55,6 @@
         safe_search.enabled = false;
       };
 
-      # Filter lists (corrected format)
       filters = [
         {
           enabled = true;
@@ -105,14 +94,12 @@
         }
       ];
 
-      # Query logging
       querylog = {
         enabled = true;
-        interval = "2160h";  # 90 days
+        interval = "2160h";
         size_memory = 1000;
       };
 
-      # Statistics
       statistics = {
         enabled = true;
         interval = "24h";

@@ -7,22 +7,39 @@
   # Enable network manager applet
   programs.nm-applet.enable = true;
 
-  # Static IP configuration
-  networking.interfaces.enp0s3 = {  # Change to your interface name!
-    ipv4.addresses = [{
-      address = "192.168.1.154";
-      prefixLength = 24;
-    }];
-  };
+  # ============================================================
+  # NETWORK CONFIGURATION
+  # ============================================================
+  # For VM: Use DHCP (static IP commented out)
+  # For Physical Machine: Uncomment static IP section below
+  # ============================================================
 
-  networking.defaultGateway = "192.168.1.1";
-  networking.nameservers = [ "1.1.1.1" "9.9.9.9" ];  # Fallback DNS
+  # Static IP configuration (COMMENTED OUT FOR VM TESTING)
+  # Uncomment these lines for physical machine deployment
+  # IMPORTANT: Change interface name to match your hardware!
+  # Find interface name with: ip addr show
 
-  # Firewall configuration
+  # networking.interfaces.enp0s3 = {  # ← CHANGE THIS to your interface name!
+  #   ipv4.addresses = [{
+  #     address = "192.168.1.154";
+  #     prefixLength = 24;
+  #   }];
+  # };
+  # 
+  # networking.defaultGateway = "192.168.1.1";
+  # networking.nameservers = [ "1.1.1.1" "9.9.9.9" ];  # Fallback DNS
+
+  # ============================================================
+  # FIREWALL CONFIGURATION
+  # ============================================================
+
   networking.firewall = {
     enable = true;
 
-    # AdGuard Home ports (opened automatically by openFirewall = true)
+    # AdGuard Home ports (automatically opened by openFirewall = true in adguard module)
+    # But we list them here for documentation
+    # Port 53 (DNS) and 3000 (Web UI) opened by AdGuard Home module
+
     # RustDesk ports (LAN only)
     allowedTCPPorts = [ 21115 21116 21117 21118 21119 ];
     allowedUDPPorts = [ 21116 ];
