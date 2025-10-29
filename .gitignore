@@ -1,0 +1,19 @@
+cat > .gitignore << 'EOF'
+# Hardware-specific (regenerate on each machine)
+hardware-configuration.nix
+
+# Secrets (if you add them later)
+secrets/
+*.age
+*.key
+
+# Build artifacts
+result
+result-*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+EOF
