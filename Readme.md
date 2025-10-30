@@ -109,14 +109,13 @@ networking = {
 Edit `configuration.nix`:
 
 ```nix
-users.users.youruser = {
+users.users.ppb1701 = {
   isNormalUser = true;
   extraGroups = [ "wheel" "networkmanager" ];
   hashedPassword = "...";
 };
 ```
 
-- Change `youruser` to your username
 - `hashedPassword` will be set during installation
 
 #### Hardware Configuration
@@ -133,18 +132,26 @@ nixos-generate-config --show-hardware-config
 
 **Setup:**
 
-1. Copy the example template:
+1. Copy the example templates:
    ```bash
    cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+   cp private/syncthing-secrets.nix.example private/syncthing-secrets.nix
    ```
 
-2. Get device IDs from each device:
+2. Set your GUI password in `private/syncthing-secrets.nix`:
+   ```nix
+   {
+     guiPassword = "your-strong-password-here";
+   }
+   ```
+
+3. Get device IDs from each device:
    - Install Syncthing
    - Open web UI: http://localhost:8384
    - Actions → Show ID
    - Copy the device ID
 
-3. Edit `private/syncthing-devices.nix`:
+4. Edit `private/syncthing-devices.nix`:
    ```nix
    services.syncthing.settings = {
      devices = {
@@ -154,22 +161,26 @@ nixos-generate-config --show-hardware-config
      };
      folders = {
        "Documents" = {
-         path = "/home/youruser/Documents";
+         path = "/home/ppb1701/Documents";
          devices = [ "my-laptop" ];
        };
      };
    };
    ```
    - Paste your device ID where it says `ABCDEFG-1234567-...`
-   - Change `youruser` to your username
    - Add more devices and folders as needed
 
-4. Rebuild:
+5. Rebuild:
    ```bash
    sudo nixos-rebuild switch
    ```
 
-> **Note:** The `private/` directory is gitignored to protect your device information.
+6. Access Syncthing web UI:
+   - **URL:** http://192.168.1.154:8384
+   - **Username:** ppb1701
+   - **Password:** (what you set in syncthing-secrets.nix)
+
+> **Note:** The `private/` directory is gitignored to protect your device IDs and password.
 
 #### Other Services
 
@@ -190,9 +201,10 @@ nixos-config/
 │   ├── networking.nix            # Network configuration
 │   └── syncthing.nix             # Syncthing config (optional)
 ├── home/
-│   └── youruser.nix              # Home Manager configuration
+│   └── ppb1701.nix               # Home Manager configuration
 ├── private/
-│   └── syncthing-devices.nix.example  # Template for Syncthing devices
+│   ├── syncthing-devices.nix.example  # Template for Syncthing devices
+│   └── syncthing-secrets.nix.example  # Template for Syncthing password
 ├── iso-config.nix                # Custom ISO configuration
 ├── build-iso.sh                  # ISO build script
 ├── install-nixos.sh              # Automated installation script
@@ -291,16 +303,30 @@ Sensitive configuration is stored in the `private/` directory, which is gitignor
 ```
 private/
 ├── syncthing-devices.nix          # Your actual devices (gitignored)
-└── syncthing-devices.nix.example  # Template (committed)
+├── syncthing-secrets.nix          # GUI password (gitignored)
+├── syncthing-devices.nix.example  # Template (committed)
+└── syncthing-secrets.nix.example  # Template (committed)
 ```
+
+**What's kept private:**
+
+- Syncthing device IDs
+- Syncthing GUI password
+- Any other sensitive credentials
+
+**What's public:**
+
+- Username (ppb1701) - already public on GitHub, Mastodon, etc.
+- Configuration structure
+- Example templates
 
 ### Building Public ISOs
 
 If you fork this repo and want to share ISOs publicly:
 
-1. Ensure `private/syncthing-devices.nix` is not present
+1. Ensure `private/syncthing-devices.nix` and `private/syncthing-secrets.nix` are not present
 2. Build ISO from clean checkout
-3. The resulting ISO will not contain device IDs
+3. The resulting ISO will not contain device IDs or passwords
 
 See `docs/building-public-isos.md` for details.
 
@@ -380,7 +406,7 @@ See `modules/networking.nix` for:
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for more solutions.
 
-### Reporting Issues
+## Reporting Issues
 
 Want to discuss? Have a suggestion?
 
