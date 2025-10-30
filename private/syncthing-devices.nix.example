@@ -1,0 +1,47 @@
+# private/syncthing-devices.nix.example
+# Copy this to private/syncthing-devices.nix and fill in your details
+# DO NOT commit the actual syncthing-devices.nix file!
+
+{ config, pkgs, ... }:
+
+{
+  services.syncthing.settings = {
+    devices = {
+      # Add your devices here
+      # Get device IDs from Syncthing web UI (Actions → Show ID)
+
+      "device-name-1" = {
+        id = "DEVICE-ID-HERE";
+      };
+
+      "device-name-2" = {
+        id = "DEVICE-ID-HERE";
+      };
+
+      # Add more devices as needed
+    };
+
+    folders = {
+      # Define your synced folders
+
+      "folder-name" = {
+        path = "/path/to/folder";
+        devices = [ "device-name-1" "device-name-2" ];
+
+        # Optional: Enable versioning
+        versioning = {
+          type = "simple";
+          params.keep = "5";
+        };
+
+        # Optional: Ignore patterns
+        ignores = [
+          "*.tmp"
+          ".git"
+        ];
+      };
+
+      # Add more folders as needed
+    };
+  };
+}

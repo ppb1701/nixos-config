@@ -15,6 +15,11 @@ result-*
 .vscode/
 .idea/
 
+# Private configuration
+private/syncthing-devices.nix
+private/*.nix
+!private/*.nix.example
+
 # OS files
 .DS_Store
 Thumbs.db

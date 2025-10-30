@@ -5,8 +5,14 @@
     ./hardware-configuration.nix
     ./modules/adguard-home.nix
     ./modules/networking.nix
-    # ./modules/rustdesk.nix  # Removed: Build error in NixOS 25.05 (cargo-auditable panic)
-  ];
+    ./modules/syncthing.nix
+
+    # Import private device config if it exists
+    # This file is gitignored
+  ] ++ (if builtins.pathExists ./private/syncthing-devices.nix
+        then [ ./private/syncthing-devices.nix ]
+        else []);
+
 
   # Bootloader
   boot.loader.grub = {
