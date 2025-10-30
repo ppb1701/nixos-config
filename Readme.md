@@ -382,6 +382,57 @@ See `modules/networking.nix` for:
 - DNS settings
 - Firewall rules
 
+### Automatic Generations Cleaning
+
+NixOS keeps previous system configurations (called "generations") as a safety feature. Every time you run `sudo nixos-rebuild switch`, it creates a new generation while keeping old ones. This is incredibly useful—if a configuration breaks your system, you can boot into a previous working generation during startup.
+
+However, these old generations accumulate over time and consume disk space. Here's how to automatically clean them up while keeping recent ones for safety.
+
+**Add to `configuration.nix`:**
+
+```nix
+{ config, pkgs, ... }:
+
+{
+  # Automatic garbage collection
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+  };
+
+  # Keep last 5 generations in bootloader menu
+  boot.loader.systemd-boot.configurationLimit = 5;
+
+  # Optimize Nix store to save space (deduplication)
+  nix.optimise.automatic = true;
+  nix.optimise.dates = [ "weekly" ];
+}
+```
+
+**What this does:**
+
+- **Garbage collection:** Automatically removes old generations older than 30 days every week
+- **Boot entries:** Keeps only the 5 most recent generations in your boot menu (prevents clutter)
+- **Store optimization:** Deduplicates identical files in the Nix store to save space
+
+**Manual cleanup:**
+
+If you need to clean up immediately:
+
+```bash
+# Delete all old generations
+sudo nix-collect-garbage -d
+
+# Delete generations older than 30 days
+sudo nix-collect-garbage --delete-older-than 30d
+
+# Optimize the store now
+sudo nix-store --optimise
+```
+
+> **Tip:** After major changes, wait a few days before letting automatic cleanup run. This gives you time to ensure the new configuration is stable.
+
 ## Troubleshooting
 
 ### Common Issues
