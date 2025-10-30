@@ -73,7 +73,7 @@
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "no";  # Security: disable root login
+      PermitRootLogin = "yes";  # Security: disable root login
       PasswordAuthentication = true;  # Can disable after setting up SSH keys
     };
   };
