@@ -1,30 +1,33 @@
-{ config, pkgs, modulesPath, ... }:
+
+{ config, pkgs, ... }:
 
 {
   imports = [
-    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
+    <nixpkgs/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix>
   ];
 
-  # Copy your entire configuration into the ISO
-  # This includes install-nixos.sh with its permissions
-  environment.etc."nixos-config" = {
-    source = ./.;
-  };
+  # Basic ISO settings
+  isoImage.isoBaseName = "nixos-config";
 
-  environment.systemPackages = with pkgs; [
-    git vim htop curl parted gptfdisk
-  ];
+  # IMPORTANT: Increase ISO size limit
+  isoImage.squashfsCompression = "xz -Xdict-size 100%";
+  isoImage.makeEfiBootable = true;
+  isoImage.makeUsbBootable = true;
 
+  # Explicitly set larger volume size
+  isoImage.volumeID = "NIXOS_ISO";
+
+  # Enable SSH for remote installation
   services.openssh.enable = true;
-  users.users.nixos.password = "nixos";
 
-  environment.etc."issue".text = ''
+  # Set root password for ISO
+  users.users.root.password = "nixos";
 
-    ╔════════════════════════════════════════════════════════╗
-    ║   NixOS AdGuard Home Installation ISO                 ║
-    ║   To install: sudo /etc/nixos-config/install-nixos.sh ║
-    ╚════════════════════════════════════════════════════════╝
-
-  '';
+  # Minimal packages needed for installation
+  environment.systemPackages = with pkgs; [
+    git
+    vim
+    parted
+    gptfdisk
+  ];
 }
-
