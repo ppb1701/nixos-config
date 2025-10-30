@@ -125,6 +125,20 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # Automatic garbage collection
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+  };
+
+  # Keep 5 boot entries for safety
+  boot.loader.systemd-boot.configurationLimit = 5;
+
+  # Optimize store automatically
+  nix.optimise.automatic = true;
+  nix.optimise.dates = [ "weekly" ];
+
   # NixOS version
   system.stateVersion = "25.05";
 }
