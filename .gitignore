@@ -1,19 +1,24 @@
-cat > .gitignore << 'EOF'
-# Hardware-specific (regenerate on each machine)
-hardware-configuration.nix
-
-# Secrets (if you add them later)
-secrets/
-*.age
-*.key
+# .gitignore
 
 # Build artifacts
 result
 result-*
+*.iso
+
+# Nix build outputs
+/result/
 
 # Editor files
+*.swp
+*.swo
+*~
 .vscode/
 .idea/
-*.swp
-*~
-EOF
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
