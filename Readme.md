@@ -45,8 +45,8 @@ https://blog.ppb1701.com/nixos-adguard-series
 **Build the ISO:**
 
 ```bash
-git clone https://github.com/ppb1701/nixos-adguard-home
-cd nixos-adguard-home
+git clone https://github.com/ppb1701/nixos-config
+cd nixos-config
 ./build-iso.sh
 ```
 
@@ -63,7 +63,7 @@ cd nixos-adguard-home
 On an existing NixOS system:
 
 ```bash
-git clone https://github.com/ppb1701/nixos-adguard-home /etc/nixos
+git clone https://github.com/ppb1701/nixos-config /etc/nixos
 cd /etc/nixos
 sudo nixos-rebuild switch
 ```
@@ -182,7 +182,7 @@ See `docs/` directory for guides on:
 ## Repository Structure
 
 ```
-nixos-adguard-home/
+nixos-config/
 ├── configuration.nix              # Main system configuration
 ├── hardware-configuration.nix     # Hardware-specific settings (example)
 ├── modules/
@@ -215,8 +215,8 @@ nixos-adguard-home/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/ppb1701/nixos-adguard-home
-   cd nixos-adguard-home
+   git clone https://github.com/ppb1701/nixos-config
+   cd nixos-config
    ```
 
 2. **Build the ISO:**
@@ -224,7 +224,7 @@ nixos-adguard-home/
    ./build-iso.sh
    ```
 
-**Result:** `nixos-adguard-home.iso` (~1GB)
+**Result:** `nixos-config.iso` (~1GB)
 
 ### What's Included
 
@@ -241,7 +241,7 @@ The custom ISO contains:
 **Linux/Mac:**
 
 ```bash
-sudo dd if=nixos-adguard-home.iso of=/dev/sdX bs=4M status=progress
+sudo dd if=nixos-config.iso of=/dev/sdX bs=4M status=progress
 sync
 ```
 

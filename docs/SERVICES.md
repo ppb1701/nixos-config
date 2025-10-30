@@ -745,4 +745,4 @@ services.netdata.enable = true;
 
 - **NixOS Options:** https://search.nixos.org/options
 - **Service-specific docs:** Check each service's official documentation
-- **This repo:** https://github.com/ppb1701/nixos-adguard-home/issues
+- **Mastodon:** [@ppb1701@ppb.social](https://ppb.social/@ppb1701)

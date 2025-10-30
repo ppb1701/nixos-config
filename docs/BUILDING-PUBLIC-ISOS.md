@@ -29,8 +29,8 @@ The simplest and safest method.
    ```bash
    # In a temporary directory
    cd /tmp
-   git clone https://github.com/ppb1701/nixos-adguard-home
-   cd nixos-adguard-home
+   git clone https://github.com/ppb1701/nixos-config
+   cd nixos-config
    ```
 
 2. **Verify no private config:**
@@ -59,7 +59,7 @@ The simplest and safest method.
 
    ```bash
    # Copy to public location
-   cp nixos-adguard-home.iso ~/public-isos/
+   cp nixos-config.iso ~/public-isos/
 
    # Or upload to GitHub Releases
    # Or share via other means
@@ -133,14 +133,14 @@ ssh builder@iso-builder
 
 # 3. Clone and build
 cd ~
-rm -rf nixos-adguard-home
-git clone https://github.com/ppb1701/nixos-adguard-home
-cd nixos-adguard-home
+rm -rf nixos-config
+git clone https://github.com/ppb1701/nixos-config
+cd nixos-config
 ./build-iso.sh
 
 # 4. Copy ISO out (via shared folder or SCP)
 # Via SCP:
-scp nixos-adguard-home.iso yourhost:~/Downloads/
+scp nixos-config.iso yourhost:~/Downloads/
 
 # 5. Shutdown
 sudo shutdown -h now
@@ -158,7 +158,7 @@ VM_NAME="iso-builder"
 VM_USER="builder"
 VM_HOST="iso-builder"
 SHARED_FOLDER="/path/to/shared/folder"
-REPO_URL="https://github.com/ppb1701/nixos-adguard-home"
+REPO_URL="https://github.com/ppb1701/nixos-config"
 
 echo "==> Starting builder VM..."
 VBoxManage startvm "$VM_NAME" --type headless
@@ -170,17 +170,17 @@ echo "==> Building ISO..."
 ssh "$VM_USER@$VM_HOST" << EOF
   set -e
   cd ~
-  rm -rf nixos-adguard-home
+  rm -rf nixos-config
   git clone $REPO_URL
-  cd nixos-adguard-home
+  cd nixos-config
   ./build-iso.sh
-  cp nixos-adguard-home.iso /media/sf_shared/ || true
+  cp nixos-config.iso /media/sf_shared/ || true
 EOF
 
 echo "==> Copying ISO..."
 # If shared folder didn't work, use SCP
-if [ ! -f "$SHARED_FOLDER/nixos-adguard-home.iso" ]; then
-  scp "$VM_USER@$VM_HOST:~/nixos-adguard-home/nixos-adguard-home.iso" "$SHARED_FOLDER/"
+if [ ! -f "$SHARED_FOLDER/nixos-config.iso" ]; then
+  scp "$VM_USER@$VM_HOST:~/nixos-config/nixos-config.iso" "$SHARED_FOLDER/"
 fi
 
 echo "==> Shutting down VM..."
@@ -245,14 +245,14 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ steps.iso.outputs.path }}
-          asset_name: nixos-adguard-home-${{ github.event.release.tag_name }}.iso
+          asset_name: nixos-config-${{ github.event.release.tag_name }}.iso
           asset_content_type: application/octet-stream
 
       - name: Upload ISO as Artifact
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v3
         with:
-          name: nixos-adguard-home-iso
+          name: nixos-config-iso
           path: ${{ steps.iso.outputs.path }}
 ```
 
@@ -316,7 +316,7 @@ Build on your configured system but remove private data first.
    ```bash
    # Mount ISO and check
    mkdir /tmp/iso-mount
-   sudo mount -o loop nixos-adguard-home.iso /tmp/iso-mount
+   sudo mount -o loop nixos-config.iso /tmp/iso-mount
    ls -la /tmp/iso-mount/etc/nixos-config/private/
    # Should not contain syncthing-devices.nix
    sudo umount /tmp/iso-mount
@@ -350,7 +350,7 @@ if [ -f "$BACKUP_CONFIG" ]; then
 fi
 
 echo "==> Done! Public ISO built successfully"
-echo "ISO location: nixos-adguard-home.iso"
+echo "ISO location: nixos-config.iso"
 ```
 
 **Usage:**
@@ -369,7 +369,7 @@ Always verify your public ISO doesn't contain private information.
 ```bash
 # Mount the ISO
 mkdir /tmp/iso-check
-sudo mount -o loop nixos-adguard-home.iso /tmp/iso-check
+sudo mount -o loop nixos-config.iso /tmp/iso-check
 
 # Check for private config
 ls -la /tmp/iso-check/etc/nixos-config/private/
@@ -393,7 +393,7 @@ Create `verify-public-iso.sh`:
 #!/usr/bin/env bash
 set -e
 
-ISO_FILE="nixos-adguard-home.iso"
+ISO_FILE="nixos-config.iso"
 MOUNT_POINT="/tmp/iso-verify"
 
 if [ ! -f "$ISO_FILE" ]; then
@@ -475,14 +475,14 @@ A fully declarative AdGuard Home DNS server configuration for NixOS.
 
 ### Installation
 
-1. Download `nixos-adguard-home-v1.0.0.iso`
+1. Download `nixos-config-v1.0.0.iso`
 2. Flash to USB drive
 3. Boot and run: `sudo /etc/nixos-config/install-nixos.sh`
 4. Follow the prompts
 
 ### Documentation
 
-See the [README](https://github.com/ppb1701/nixos-adguard-home) for complete setup instructions.
+See the [README](https://github.com/ppb1701/nixos-config) for complete setup instructions.
 
 ### Checksums
 
@@ -534,15 +534,15 @@ SHA256: `abc123...`
 **Private ISOs:**
 
 ```
-nixos-adguard-home-private-2025-01-30.iso
-nixos-adguard-home-backup-v2.iso
+nixos-config-private-2025-01-30.iso
+nixos-config-backup-v2.iso
 ```
 
 **Public ISOs:**
 
 ```
-nixos-adguard-home-v1.0.0.iso
-nixos-adguard-home-v1.1.0.iso
+nixos-config-v1.0.0.iso
+nixos-config-v1.1.0.iso
 ```
 
 ### Storage
@@ -602,6 +602,5 @@ nixos-adguard-home-v1.1.0.iso
 
 ## Getting Help
 
-- **This repo's issues:** https://github.com/ppb1701/nixos-adguard-home/issues
 - **NixOS Discourse:** https://discourse.nixos.org/
 - **Mastodon:** [@ppb1701@ppb.social](https://ppb.social/@ppb1701)

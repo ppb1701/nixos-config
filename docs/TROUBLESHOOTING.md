@@ -368,7 +368,7 @@ This guide covers common issues you might encounter when setting up or running y
 
 3. Manually create symlink:
    ```bash
-   ln -s /nix/store/xxxxx-nixos.iso ./nixos-adguard-home.iso
+   ln -s /nix/store/xxxxx-nixos.iso ./nixos-config.iso
    ```
 
 ### ISO Won't Boot
@@ -381,12 +381,12 @@ This guide covers common issues you might encounter when setting up or running y
 
 1. Verify ISO integrity:
    ```bash
-   sha256sum nixos-adguard-home.iso
+   sha256sum nixos-config.iso
    ```
 
 2. Re-flash USB drive:
    ```bash
-   sudo dd if=nixos-adguard-home.iso of=/dev/sdX bs=4M status=progress
+   sudo dd if=nixos-config.iso of=/dev/sdX bs=4M status=progress
    sync
    ```
 
@@ -516,7 +516,6 @@ If you're still having issues:
 - **NixOS manual:** https://nixos.org/manual/nixos/stable/
 - **AdGuard Home docs:** https://github.com/AdguardTeam/AdGuardHome/wiki
 - **Syncthing docs:** https://docs.syncthing.net/
-- **Open an issue:** https://github.com/ppb1701/nixos-adguard-home/issues
 - **Ask on Mastodon:** @ppb1701@ppb.social
 
 ### When Asking for Help
@@ -527,3 +526,4 @@ Please include:
 - **Error messages** from logs
 - **Relevant configuration** snippets
 - **Steps to reproduce** the issue
+- **Keep in mind I'm no expert ;) but I'll try to help**
