@@ -3,8 +3,14 @@
 
 {
   imports = [
-    <nixpkgs/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix>
+    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
+
+  # Ensure both UEFI and BIOS boot work
+  boot.loader.grub = {
+    efiSupport = true;
+    efiInstallAsRemovable = true;
+  };
 
   # Basic ISO settings
   isoImage.isoBaseName = "nixos-config";
