@@ -104,6 +104,7 @@
     btop
     neofetch
     gitui
+    micro
 
     # Desktop packages (for occasional local access)
     vivaldi

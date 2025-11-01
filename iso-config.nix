@@ -16,6 +16,14 @@
   isoImage.makeUsbBootable = true;
   isoImage.squashfsCompression = "xz -Xdict-size 100%";
 
+  # Copy your entire nixos-config repo into the ISO
+  isoImage.contents = [
+    {
+      source = ./.;
+      target = "/nixos-config";
+    }
+  ];
+
   # Enable SSH and set root password for live environment
   services.openssh.enable = true;
   users.users.root.password = "nixos";
@@ -28,4 +36,3 @@
     gptfdisk
   ];
 }
-
