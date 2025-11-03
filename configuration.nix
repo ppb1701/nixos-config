@@ -1,33 +1,55 @@
 { config, pkgs, ... }:
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ⚠️  SECURITY WARNING - READ BEFORE USE ⚠️
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# This configuration installs with an EMPTY PASSWORD for initial convenience.
+# This allows you to:
+#   1. Keep passwords out of your public GitHub repository
+#   2. Set your own password after installation
+#   3. Modify configurations without being locked out
+#
+# IMMEDIATELY after installation, you MUST:
+#   1. SSH into the system: ssh ppb1701@YOUR_IP (press Enter for password)
+#   2. Set a strong password: passwd
+#   3. Edit this file: sudo micro /etc/nixos/configuration.nix
+#      - Change: security.sudo.wheelNeedsPassword = true;
+#      - Change: services.openssh.settings.PermitEmptyPasswords = false;
+#   4. Rebuild: sudo nixos-rebuild switch
+#
+# DO NOT expose this system to the internet before securing it.
+# The maintainers assume NO responsibility for security breaches resulting
+# from failure to secure this system after installation.
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
 {
   imports = [
     ./hardware-configuration.nix
     ./modules/adguard-home.nix
     ./modules/networking.nix
     ./modules/syncthing.nix
-
-    # Import private device config if it exists
-    # This file is gitignored
   ] ++ (if builtins.pathExists ./private/syncthing-devices.nix
         then [ ./private/syncthing-devices.nix ]
+        else [])
+    ++ (if builtins.pathExists ./private/secrets.nix
+        then [ ./private/secrets.nix ]
         else []);
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BOOTLOADER - UEFI/systemd-boot
+  # ═══════════════════════════════════════════════════════════════════════════
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 5;
+  boot.loader.efi.canTouchEfiVariables = true;
 
-  # Bootloader
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/sda";
-    useOSProber = true;
-  };
-
-  # Hostname
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEM SETTINGS
+  # ═══════════════════════════════════════════════════════════════════════════
   networking.hostName = "nixos";
-
-  # Timezone
   time.timeZone = "America/New_York";
 
-  # Locale
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "en_US.UTF-8";
@@ -41,7 +63,9 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # X11 and Desktop Environment (minimal for occasional local access)
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DESKTOP ENVIRONMENT (Minimal - for occasional local access)
+  # ═══════════════════════════════════════════════════════════════════════════
   services.xserver = {
     enable = true;
     displayManager.lightdm.enable = true;
@@ -59,7 +83,9 @@
     user = "ppb1701";
   };
 
-  # Sound
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AUDIO
+  # ═══════════════════════════════════════════════════════════════════════════
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -69,34 +95,48 @@
     pulse.enable = true;
   };
 
-  # Printing
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SERVICES
+  # ═══════════════════════════════════════════════════════════════════════════
   services.printing.enable = true;
-
-  # Keyring
   services.gnome.gnome-keyring.enable = true;
 
-  # SSH (primary remote access method)
+  # SSH - Primary remote access method
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "no";  # Security: disable root login
-      PasswordAuthentication = true;  # Can disable after setting up SSH keys
+      PermitRootLogin = "no";
+      PasswordAuthentication = true;
+      # ⚠️ TEMPORARY: Allows login with empty password for initial setup
+      # Change to false after setting your password!
+      PermitEmptyPasswords = true;
     };
   };
 
-  # User definition
+  # ═══════════════════════════════════════════════════════════════════════════
+  # USER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ⚠️ CRITICAL: Allows users to set/change passwords with 'passwd' command
+  users.mutableUsers = true;
+
   users.users.ppb1701 = {
     isNormalUser = true;
     description = "Patrick Boyd";
-    extraGroups = [ "networkmanager" "wheel" ];  # wheel = sudo access
-    # Optional: Add SSH public key for passwordless login
-    # openssh.authorizedKeys.keys = [
-    #   "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-key-here"
-    # ];
+    extraGroups = [ "networkmanager" "wheel" ];
+    # NO password set here - user sets it after installation
+    # If you want to pre-configure a password, create private/secrets.nix
   };
 
-  # System packages
+  # ⚠️ TEMPORARY: Allows sudo without password for initial setup
+  # Change to true after setting your password!
+  security.sudo.wheelNeedsPassword = false;
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEM PACKAGES
+  # ═══════════════════════════════════════════════════════════════════════════
   environment.systemPackages = with pkgs; [
+    # CLI tools
     vim
     wget
     git
@@ -123,7 +163,9 @@
     feh
   ];
 
-  # Allow unfree packages
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NIX SETTINGS
+  # ═══════════════════════════════════════════════════════════════════════════
   nixpkgs.config.allowUnfree = true;
 
   # Automatic garbage collection
@@ -133,13 +175,12 @@
     options = "--delete-older-than 30d";
   };
 
-  # Keep 5 boot entries for safety
-  boot.loader.systemd-boot.configurationLimit = 5;
-
-  # Optimize store automatically
+  # Optimize store
   nix.optimise.automatic = true;
   nix.optimise.dates = [ "weekly" ];
 
-  # NixOS version
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEM VERSION
+  # ═══════════════════════════════════════════════════════════════════════════
   system.stateVersion = "25.05";
 }

@@ -1,48 +1,74 @@
-{ config, pkgs, lib, modulesPath, ... }:
+{ config, pkgs, modulesPath, ... }:
 
 {
   imports = [
     "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
 
-  # Ensure both UEFI and BIOS boot work
-  boot.loader.grub = {
-    efiSupport = true;
-    efiInstallAsRemovable = true;
-  };
-
-  # ISO settings
-  isoImage.makeEfiBootable = true;
-  isoImage.makeUsbBootable = true;
-  isoImage.squashfsCompression = "xz -Xdict-size 100%";
-
-  # Copy all files and directories into /etc/nixos on the ISO
+  # Copy configuration files to the ISO
   environment.etc = {
-    # Root level files
     "nixos/configuration.nix".source = ./configuration.nix;
-    "nixos/hardware-configuration.nix".source = ./hardware-configuration.nix;
     "nixos/iso-config.nix".source = ./iso-config.nix;
-    "nixos/build-iso.sh".source = ./build-iso.sh;
-    "nixos/install-nixos.sh".source = ./install-nixos.sh;
-    "nixos/Readme.md".source = ./Readme.md;
-
-    # Directories
-    "nixos/modules".source = ./modules;
-    "nixos/docs".source = ./docs;
-    "nixos/home".source = ./home;
-    "nixos/private".source = ./private;
+    "nixos/install-nixos.sh" = {
+      source = ./install-nixos.sh;
+      mode = "0755";
+    };
+    "nixos/build-iso.sh" = {
+      source = ./build-iso.sh;
+      mode = "0755";
+    };
+    "nixos/.gitignore".source = ./.gitignore;
   };
 
-  # Enable SSH and set root password for live environment
-  services.openssh.enable = true;
-  users.users.root.password = "nixos";
+  # Copy modules directory
+  environment.etc."nixos/modules" = {
+    source = ./modules;
+  };
 
-  # Include useful tools in the ISO
+  # Copy private directory if it exists (for passwords/secrets)
+  environment.etc."nixos/private" = {
+    source = if builtins.pathExists ./private then ./private else builtins.toFile "empty" "";
+  };
+
+  # AUTO-RUN: Start installation script on boot
+  systemd.services.auto-install = {
+    description = "Automatic NixOS Installation (Ctrl+C to cancel)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/install-nixos.sh";
+      StandardInput = "tty";
+      StandardOutput = "inherit";
+      StandardError = "inherit";
+      TTYPath = "/dev/tty1";
+      TTYReset = "yes";
+      TTYVHangup = "yes";
+    };
+  };
+
+  # Networking
+  networking.wireless.enable = false;
+  networking.networkmanager.enable = true;
+
+  # System packages for the live environment
   environment.systemPackages = with pkgs; [
     git
     vim
     micro
+    htop
     parted
     gptfdisk
   ];
+
+  # Enable SSH for remote installation if needed
+  services.openssh = {
+    enable = true;
+    settings.PermitRootLogin = "yes";
+  };
+
+  # Auto-login as nixos user (for manual intervention if needed)
+  services.getty.autologinUser = "nixos";
+
+  nixpkgs.hostPlatform = "x86_64-linux";
 }
