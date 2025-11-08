@@ -61,12 +61,11 @@
         else []);
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # BOOTLOADER - GRUB (BIOS/Legacy Mode)
+  # BOOTLOADER - systemd-boot (UEFI Mode)
   # ═══════════════════════════════════════════════════════════════════════════
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/sda";  # Install GRUB to MBR
-  };
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 5;
+  boot.loader.efi.canTouchEfiVariables = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM SETTINGS
@@ -241,22 +240,6 @@
   # Optimize store
   nix.optimise.automatic = true;
   nix.optimise.dates = [ "weekly" ];
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NIX BUILD SETTINGS - Use disk instead of RAM for builds
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Force builds to use /nix/tmp instead of RAM-based /tmp
-systemd.services.nix-daemon.environment = {
-  TMPDIR = "/nix/tmp";
-};
-
-# Create the directory
-systemd.tmpfiles.rules = [
-  "d /nix/tmp 0755 root root -"
-];
-
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION

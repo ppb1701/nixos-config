@@ -7,6 +7,31 @@ A fully declarative, reproducible AdGuard Home DNS server built with NixOS. This
 - **Disaster-proof:** Complete recovery in 20 minutes
 - **Privacy-focused:** Ad-blocking DNS with local control
 
+## ⚠️ Security Warning
+
+This configuration uses a **temporary, publicly-known password** for initial convenience:
+
+**Default Password:** `nixos`
+
+### Why This Approach?
+
+- Keeps passwords out of public GitHub repositories
+- Allows you to set your own secure password after installation
+- Prevents being locked out of a freshly installed system
+
+### CRITICAL: Change Password Immediately
+
+**After installation, you MUST:**
+
+1. SSH into the system: `ssh ppb1701@YOUR_IP` (password: `nixos`)
+2. Change your password: `passwd`
+3. Edit `/etc/nixos/configuration.nix`:
+   - Remove: `initialPassword = "nixos";`
+   - Change: `security.sudo.wheelNeedsPassword = true;`
+4. Rebuild: `sudo nixos-rebuild switch`
+
+**DO NOT expose this system to the internet before changing the password!**
+
 ## Blog Series
 
 This repository is the companion code for my blog series:

@@ -5,32 +5,69 @@
     "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
 
-  # Copy configuration files to the ISO
-  environment.etc = {
-    "nixos/configuration.nix".source = ./configuration.nix;
-    "nixos/iso-config.nix".source = ./iso-config.nix;
-    "nixos/install-nixos.sh" = {
-      source = ./install-nixos.sh;
-      mode = "0755";
-    };
-    "nixos/build-iso.sh" = {
-      source = ./build-iso.sh;
-      mode = "0755";
-    };
-    "nixos/.gitignore".source = ./.gitignore;
-  };
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FORCE UEFI BOOT FOR THE ISO ITSELF
+  # ═══════════════════════════════════════════════════════════════════════════
+  # This makes the ISO bootable on UEFI systems
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = false;  # ISO doesn't need to touch EFI vars
 
-  # Copy modules directory
-  environment.etc."nixos/modules" = {
-    source = ./modules;
-  };
+  # Ensure ISO supports both BIOS and UEFI boot
+  isoImage.makeEfiBootable = true;
+  isoImage.makeUsbBootable = true;
 
-  # Copy private directory if it exists (for passwords/secrets)
-  environment.etc."nixos/private" = {
-    source = if builtins.pathExists ./private then ./private else builtins.toFile "empty" "";
-  };
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COPY CONFIGURATION FILES TO ISO
+  # ═══════════════════════════════════════════════════════════════════════════
+  environment.etc = pkgs.lib.mkMerge [
+    # Base configuration files
+    {
+      "nixos/configuration.nix".source = ./configuration.nix;
+      "nixos/configuration-uefi.nix".source = ./configuration-uefi.nix;
+      "nixos/iso-config.nix".source = ./iso-config.nix;
+      "nixos/.gitignore".source = ./.gitignore;
 
-  # AUTO-RUN: Start installation script on boot
+      "nixos/install-nixos.sh" = {
+        source = ./install-nixos.sh;
+        mode = "0755";
+      };
+
+      "nixos/build-iso.sh" = {
+        source = ./build-iso.sh;
+        mode = "0755";
+      };
+
+      # Create empty directories
+      "nixos/modules/.keep".text = "";
+      "nixos/private/.keep".text = "";
+    }
+
+    # Conditionally add module files if they exist
+    (if builtins.pathExists ./modules/adguard-home.nix then {
+      "nixos/modules/adguard-home.nix".source = ./modules/adguard-home.nix;
+    } else {})
+
+    (if builtins.pathExists ./modules/networking.nix then {
+      "nixos/modules/networking.nix".source = ./modules/networking.nix;
+    } else {})
+
+    (if builtins.pathExists ./modules/syncthing.nix then {
+      "nixos/modules/syncthing.nix".source = ./modules/syncthing.nix;
+    } else {})
+
+    # Conditionally add private files if they exist
+    (if builtins.pathExists ./private/secrets.nix then {
+      "nixos/private/secrets.nix".source = ./private/secrets.nix;
+    } else {})
+
+    (if builtins.pathExists ./private/syncthing-devices.nix then {
+      "nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
+    } else {})
+  ];
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AUTO-RUN INSTALLER
+  # ═══════════════════════════════════════════════════════════════════════════
   systemd.services.auto-install = {
     description = "Automatic NixOS Installation (Ctrl+C to cancel)";
     wantedBy = [ "multi-user.target" ];
@@ -47,11 +84,12 @@
     };
   };
 
-  # Networking
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LIVE ENVIRONMENT SETTINGS
+  # ═══════════════════════════════════════════════════════════════════════════
   networking.wireless.enable = false;
   networking.networkmanager.enable = true;
 
-  # System packages for the live environment
   environment.systemPackages = with pkgs; [
     git
     vim
@@ -61,13 +99,11 @@
     gptfdisk
   ];
 
-  # Enable SSH for remote installation if needed
   services.openssh = {
     enable = true;
     settings.PermitRootLogin = "yes";
   };
 
-  # Auto-login as nixos user (for manual intervention if needed)
   services.getty.autologinUser = "nixos";
 
   nixpkgs.hostPlatform = "x86_64-linux";
