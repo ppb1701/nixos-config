@@ -47,6 +47,48 @@ in
     LC_TIME = "en_US.UTF-8";
   };
 
+
+
+
+# Remove or comment out the old Oh-My-Zsh config
+# programs.zsh.ohMyZsh = { ... };
+
+# Add Starship
+programs.starship = {
+  enable = true;
+  settings = {
+    add_newline = false;
+
+    # Git branch with icon
+    git_branch = {
+      symbol = "🌱 ";
+      format = "[$symbol$branch]($style) ";
+    };
+
+    # Git status (shows dirty files, etc.)
+    git_status = {
+      format = "([$all_status$ahead_behind]($style) )";
+    };
+
+    # Show command execution time
+    cmd_duration = {
+      min_time = 500;
+      format = "took [$duration]($style) ";
+    };
+  };
+};
+
+programs.zsh = {
+  enable = true;
+  enableCompletion = true;
+  interactiveShellInit = ''
+    eval "$(starship init zsh)"
+  '';
+};
+
+users.users.ppb1701.shell = pkgs.zsh;
+
+
   # ═══════════════════════════════════════════════════════════════════════════
   # USER CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════
@@ -102,6 +144,13 @@ in
     dates = "weekly";
     options = "--delete-older-than 30d";
   };
+
+system.autoUpgrade = {
+  enable = true;
+  allowReboot = false;  # Set to true if you want automatic reboots
+  dates = "04:00";  # Run at 4 AM daily
+  flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
+};
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION
