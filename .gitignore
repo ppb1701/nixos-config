@@ -1,0 +1,30 @@
+# .gitignore
+
+# Build artifacts
+result
+result-*
+*.iso
+
+# Nix build outputs
+/result/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Private configuration
+private/syncthing-devices.nix
+private/*.nix
+!private/*.nix.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+hardware-configuration.nix
