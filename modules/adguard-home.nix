@@ -17,8 +17,8 @@
         port = 53;
 
         upstream_dns = [
-          "https://dns.cloudflare.com/dns-query"
-          "https://dns.quad9.net/dns-query"
+          "76.76.2.2"
+          "76.76.10.2"
           "9.9.9.9"
           "149.112.112.112"
         ];
@@ -28,7 +28,19 @@
           "149.112.112.10"
         ];
 
-        # Client identification
+        # LOCAL DNS MAPPINGS (this is where your router goes)
+        rewrites = [
+          {
+            domain = "router.local";
+            answer = "192.168.1.1";
+          }
+          {
+            domain = "gateway.local";
+            answer = "192.168.1.1";
+          }
+        ];
+
+        # MOVED INSIDE dns block (was outside before)
         resolve_clients = true;
         use_private_ptr_resolvers = true;
 
@@ -36,7 +48,7 @@
         local_ptr_upstreams = [
           "192.168.1.1"  # Your ASUS router
         ];
-      };
+      };  # <- dns closes HERE (after local_ptr_upstreams)
 
       clients = {
         runtime_sources = {
