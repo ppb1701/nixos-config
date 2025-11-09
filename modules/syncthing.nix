@@ -1,26 +1,29 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
-  secrets = import ../private/syncthing-secrets.nix;
+  # Make private directory available in Nix store
+  privateDir = builtins.path {
+    path = /etc/nixos/private;
+    name = "nixos-private";
+  };
 in
 {
+  imports = [
+    "${privateDir}/syncthing-devices.nix"
+  ];
+
   services.syncthing = {
     enable = true;
     user = "ppb1701";
-    dataDir = "/home/ppb1701";
+    group = "users";
+    dataDir = "/home/ppb1701/.local/share/syncthing";
     configDir = "/home/ppb1701/.config/syncthing";
-    overrideDevices = true;
-    overrideFolders = true;
 
     settings = {
       gui = {
         user = "ppb1701";
-        password = secrets.guiPassword;  # From private file
+        password = lib.mkDefault "";
       };
     };
   };
-
-  imports = [
-    ../private/syncthing-devices.nix
-  ];
 }
