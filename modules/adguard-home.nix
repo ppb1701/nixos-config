@@ -32,11 +32,11 @@
         rewrites = [
           {
             domain = "router.local";
-            answer = "192.168.1.1";
+            answer = "192.168.50.1";
           }
           {
             domain = "gateway.local";
-            answer = "192.168.1.1";
+            answer = "192.168.50.1";
           }
         ];
 

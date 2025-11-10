@@ -40,17 +40,18 @@
     # But we list them here for documentation
     # Port 53 (DNS) and 3000 (Web UI) opened by AdGuard Home module
 
-    # RustDesk ports (LAN only)
  allowedTCPPorts = [ 
         22      # SSH
         53      # DNS (TCP) - ADD THIS
         80      # HTTP
         443     # HTTPS
         3000    # AdGuard Home web UI
-        8384    # Syncthing web UI      
+        8384    # Syncthing web UI     
+        22000   # Syncthing sync protocol 
       ];
       allowedUDPPorts = [ 
-        53      # DNS (UDP) - ADD THIS (CRITICAL!)        
+        53      # DNS (UDP) - ADD THIS (CRITICAL!)   
+        22000   # Syncthing sync protocol     
       ];
   };
 }

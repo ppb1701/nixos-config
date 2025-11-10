@@ -19,6 +19,8 @@ in
     dataDir = "/home/ppb1701/.local/share/syncthing";
     configDir = "/home/ppb1701/.config/syncthing";
 
+    # Allow access from network (not just localhost)   
+
     settings = {
       gui = {
         user = "ppb1701";

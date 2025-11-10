@@ -47,47 +47,84 @@ in
     LC_TIME = "en_US.UTF-8";
   };
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DESKTOP ENVIRONMENT - LXQt (Minimal, for occasional local access)
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.xserver = {
+    enable = true;
+    displayManager.lightdm.enable = true;
+    desktopManager.lxqt.enable = true;
 
-
-
-# Remove or comment out the old Oh-My-Zsh config
-# programs.zsh.ohMyZsh = { ... };
-
-# Add Starship
-programs.starship = {
-  enable = true;
-  settings = {
-    add_newline = false;
-
-    # Git branch with icon
-    git_branch = {
-      symbol = "🌱 ";
-      format = "[$symbol$branch]($style) ";
-    };
-
-    # Git status (shows dirty files, etc.)
-    git_status = {
-      format = "([$all_status$ahead_behind]($style) )";
-    };
-
-    # Show command execution time
-    cmd_duration = {
-      min_time = 500;
-      format = "took [$duration]($style) ";
+    xkb = {
+      layout = "us";
+      variant = "";
     };
   };
-};
 
-programs.zsh = {
-  enable = true;
-  enableCompletion = true;
-  interactiveShellInit = ''
-    eval "$(starship init zsh)"
-  '';
-};
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = "ppb1701";
+  };
 
-users.users.ppb1701.shell = pkgs.zsh;
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AUDIO - PipeWire
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.pulseaudio.enable = false;
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+  };
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SERVICES
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.printing.enable = true;
+  services.gnome.gnome-keyring.enable = true;
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ZSH & STARSHIP CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  programs.starship = {
+    enable = true;
+    settings = {
+      add_newline = false;
+
+      # Git branch with icon
+      git_branch = {
+        symbol = "🌱 ";
+        format = "[$symbol$branch]($style) ";
+      };
+
+      # Git status (shows dirty files, etc.)
+      git_status = {
+        format = "([$all_status$ahead_behind]($style) )";
+      };
+
+      # Show command execution time
+      cmd_duration = {
+        min_time = 500;
+        format = "took [$duration]($style) ";
+      };
+    };
+  };
+
+  programs.zsh = {
+    enable = true;
+    enableCompletion = true;
+    autosuggestions.enable = true;
+    syntaxHighlighting.enable = true;
+    interactiveShellInit = ''
+      eval "$(starship init zsh)"
+    '';
+    shellAliases = {
+      ll = "ls -lah";
+      update = "sudo nixos-rebuild switch";
+      edit-config = "sudo micro /etc/nixos/configuration.nix";
+    };
+  };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # USER CONFIGURATION
@@ -96,6 +133,7 @@ users.users.ppb1701.shell = pkgs.zsh;
     isNormalUser = true;
     description = "ppb1701";
     extraGroups = [ "wheel" "networkmanager" ];
+    shell = pkgs.zsh;
     # NOTE: Password already set via passwd command - no initialPassword needed
     openssh.authorizedKeys.keys = [
       # Add your SSH public keys here if you have them
@@ -114,7 +152,7 @@ users.users.ppb1701.shell = pkgs.zsh;
     enable = true;
     settings = {
       PermitRootLogin = "no";
-      PasswordAuthentication = true;  # Change to false after setting up SSH keys
+      PasswordAuthentication = false;  # SSH keys only (more secure)
     };
   };
 
@@ -122,18 +160,45 @@ users.users.ppb1701.shell = pkgs.zsh;
   # PACKAGES
   # ═══════════════════════════════════════════════════════════════════════════
   environment.systemPackages = with pkgs; [
+    # CLI tools
     vim
     wget
     curl
     git
     htop
+    btop
+    neofetch
     micro
     gitui
+
+    # Desktop packages (for occasional local access)
+    vivaldi
+    vivaldi-ffmpeg-codecs
+    lxde.lxtask
+    lxqt.screengrab
+    lxqt.pavucontrol-qt
+    lxqt.qterminal
+    lxqt.pcmanfm-qt
+    lxmenu-data
+    menu-cache
+    lxqt.lximage-qt
+    lxqt.lxqt-archiver
+    lxqt.lxqt-sudo
+    libsForQt5.breeze-icons
+    networkmanagerapplet
+    feh
+
+    # Fonts for Starship/powerline themes
+    nerd-fonts.fira-code
+    nerd-fonts.jetbrains-mono
+    nerd-fonts.meslo-lg
   ];
 
   # ═══════════════════════════════════════════════════════════════════════════
   # NIX SETTINGS
   # ═══════════════════════════════════════════════════════════════════════════
+  nixpkgs.config.allowUnfree = true;
+
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
@@ -145,12 +210,15 @@ users.users.ppb1701.shell = pkgs.zsh;
     options = "--delete-older-than 30d";
   };
 
-system.autoUpgrade = {
-  enable = true;
-  allowReboot = false;  # Set to true if you want automatic reboots
-  dates = "04:00";  # Run at 4 AM daily
-  flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
-};
+  nix.optimise.automatic = true;
+  nix.optimise.dates = [ "weekly" ];
+
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = false;  # Set to true if you want automatic reboots
+    dates = "04:00";  # Run at 4 AM daily
+    flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
+  };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION
