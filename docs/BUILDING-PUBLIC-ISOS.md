@@ -2,6 +2,29 @@
 
 This guide explains how to build sanitized ISOs for public distribution without exposing your private configuration.
 
+## Boot Modes: BIOS vs UEFI
+
+This repository supports both boot modes:
+
+- **`configuration.nix`:** GRUB bootloader for BIOS/Legacy mode (older hardware)
+- **`configuration-uefi.nix`:** systemd-boot for UEFI mode (modern hardware)
+
+**Which should you use?**
+
+- **UEFI (recommended for modern systems):**
+  - Systems manufactured after ~2012
+  - Faster boot times
+  - Better security features (Secure Boot support)
+  - File: `configuration-uefi.nix`
+
+- **BIOS/Legacy:**
+  - Older hardware
+  - Some VMs default to BIOS mode
+  - More universal compatibility
+  - File: `configuration.nix`
+
+**The ISO itself supports both!** The `iso-config.nix` creates a bootable ISO that works in both BIOS and UEFI modes. You choose which configuration to use during installation.
+
 ## Why Separate Public and Private ISOs?
 
 ### Private ISO (for you)

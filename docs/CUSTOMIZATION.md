@@ -428,6 +428,208 @@ querylog = {
 
 ## Adding Services
 
+### Syncthing Configuration
+
+Syncthing is configured using a combination of the main module (`modules/syncthing.nix`) and private configuration files for device-specific settings.
+
+#### Initial Setup
+
+1. **Create private configuration files:**
+
+   ```bash
+   cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+   ```
+
+2. **Set your GUI password** in `private/syncthing-devices.nix`:
+
+   Add to the settings section:
+   ```nix
+   {
+     services.syncthing.settings = {
+       gui = {
+         user = "ppb1701";
+         password = "your-secure-password-here";
+       };
+       
+       devices = {
+         # Your devices here...
+       };
+       
+       folders = {
+         # Your folders here...
+       };
+     };
+   }
+   ```
+
+3. **Get device IDs** from each device you want to sync:
+   - Install Syncthing on the device
+   - Open web UI: `http://localhost:8384`
+   - Go to Actions → Show ID
+   - Copy the device ID (format: `ABCDEFG-HIJKLMN-...`)
+
+4. **Configure devices and folders** in `private/syncthing-devices.nix`:
+
+   ```nix
+   {
+     services.syncthing.settings = {
+       devices = {
+         "windows-desktop" = {
+           id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
+         };
+         "macbook" = {
+           id = "BCDEFGH-IJKLMNO-PQRSTUV-WXYZABC-DEFGHIJ-KLMNOPQ-RSTUVWX-YZABCDE";
+         };
+       };
+
+       folders = {
+         "Documents" = {
+           path = "/home/ppb1701/Documents";
+           devices = [ "windows-desktop" "macbook" ];
+           versioning = {
+             type = "simple";
+             params.keep = "5";
+           };
+         };
+         "Photos" = {
+           path = "/home/ppb1701/Pictures";
+           devices = [ "macbook" ];
+           ignorePerms = false;
+         };
+       };
+     };
+   }
+   ```
+
+5. **Rebuild the system:**
+
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+6. **Access Syncthing web UI:**
+   - URL: `http://192.168.1.154:8384`
+   - Username: `ppb1701`
+   - Password: (from syncthing-secrets.nix)
+
+#### Adding More Devices
+
+Edit `private/syncthing-devices.nix` and add to the `devices` section:
+
+```nix
+devices = {
+  "existing-device" = {
+    id = "...";
+  };
+  "new-device" = {
+    id = "NEWDEVIC-EIDHERE-...";
+  };
+};
+```
+
+Then add the device to folders you want to share:
+
+```nix
+folders = {
+  "Documents" = {
+    path = "/home/ppb1701/Documents";
+    devices = [ "existing-device" "new-device" ];
+  };
+};
+```
+
+#### Syncthing Settings
+
+**Folder options:**
+
+```nix
+folders = {
+  "My Folder" = {
+    path = "/home/ppb1701/MyFolder";
+    devices = [ "device1" "device2" ];
+    
+    # File versioning
+    versioning = {
+      type = "simple";  # or "trashcan", "staggered", "external"
+      params.keep = "10";
+    };
+    
+    # Ignore patterns
+    ignorePerms = false;  # Preserve permissions
+    
+    # Rescan interval
+    rescanIntervalS = 3600;  # Check every hour
+    
+    # Watch for changes
+    fsWatcherEnabled = true;
+    
+    # File pull order
+    order = "random";  # or "alphabetic", "smallestFirst", "largestFirst"
+  };
+};
+```
+
+**GUI options:**
+
+```nix
+settings.gui = {
+  user = "ppb1701";
+  password = "...";  # Set in syncthing-secrets.nix
+  theme = "dark";  # or "light", "black"
+  debugging = false;
+  insecureSkipHostcheck = false;
+};
+```
+
+**Global options:**
+
+```nix
+settings.options = {
+  urAccepted = -1;  # Disable usage reporting
+  localAnnounceEnabled = true;
+  globalAnnounceEnabled = true;
+  relaysEnabled = true;
+  natEnabled = true;
+  startBrowser = false;
+};
+```
+
+#### Troubleshooting Syncthing
+
+**Devices not discovering each other:**
+
+1. Manually add device addresses in `private/syncthing-devices.nix`:
+
+   ```nix
+   devices = {
+     "my-device" = {
+       id = "ABCDEFG-...";
+       addresses = [ "tcp://192.168.1.100:22000" ];
+     };
+   };
+   ```
+
+2. Check firewall allows Syncthing ports:
+
+   ```bash
+   ss -tlnp | grep 22000  # Sync port
+   ss -tlnp | grep 8384   # Web UI port
+   ```
+
+3. Verify Syncthing is running:
+
+   ```bash
+   systemctl status syncthing
+   journalctl -u syncthing -f
+   ```
+
+**Files not syncing:**
+
+- Check folder status in web UI
+- Verify folder paths exist and are writable
+- Check disk space
+- Review ignore patterns
+
 ### Creating a New Service Module
 
 **Create `modules/your-service.nix`:**

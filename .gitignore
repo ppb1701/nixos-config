@@ -28,3 +28,5 @@ Thumbs.db
 *.tmp
 *.bak
 hardware-configuration.nix
+chatlog.txt
+docs/BLOG-SERIES-PLAN.md

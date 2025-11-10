@@ -41,20 +41,42 @@ https://blog.ppb1701.com/nixos-adguard-series
 
 **Discussion:** [@ppb1701@ppb.social](https://ppb.social/@ppb1701)
 
+## Repository Branches
+
+This repository has two main branches serving different purposes:
+
+- **`main`:** Production server configuration - battle-tested and running on physical hardware
+- **`vm`:** Testing branch - for VM testing and development of new features
+
+When deploying to production, use the `main` branch. Use `vm` for testing changes safely before deploying.
+
 ## Features
 
 ### Core Services
 
 - **AdGuard Home:** Network-wide ad blocking and DNS filtering
-- **Declarative Configuration:** All settings in version control
-- **Custom Filter Lists:** 12+ curated filter lists
-- **Client Identification:** Reverse DNS lookup for device names
+  - 12+ curated filter lists
+  - Client identification via reverse DNS
+  - ASUS router integration
+- **Syncthing:** Cross-platform file synchronization
+  - Works with Windows, macOS, Linux, Android
+  - Private device configuration
+  - Secure LAN-only sync
+- **SSH Access:** Secure remote management
+  - No exposed ports beyond LAN
+  - Key-based authentication support
 
 ### Optional Services
 
-- **Syncthing:** Cross-platform file synchronization (optional)
 - **Monitoring:** System monitoring with Netdata (optional)
 - **Remote Access:** Tailscale VPN integration (optional)
+
+### Infrastructure Features
+
+- **Modular Configuration:** Services organized in separate modules
+- **Private Configuration:** Sensitive data kept out of Git
+- **Custom ISO Builder:** Bootable installation images
+- **Automated Installation:** Zero-touch deployment script
 
 ### Infrastructure
 
@@ -157,17 +179,19 @@ nixos-generate-config --show-hardware-config
 
 **Setup:**
 
-1. Copy the example templates:
+1. Copy the example template:
    ```bash
    cp private/syncthing-devices.nix.example private/syncthing-devices.nix
-   cp private/syncthing-secrets.nix.example private/syncthing-secrets.nix
    ```
 
-2. Set your GUI password in `private/syncthing-secrets.nix`:
+2. Set your GUI password in `private/syncthing-devices.nix`:
    ```nix
-   {
-     guiPassword = "your-strong-password-here";
-   }
+   services.syncthing.settings = {
+     gui = {
+       user = "ppb1701";
+       password = "your-strong-password-here";
+     };
+   };
    ```
 
 3. Get device IDs from each device:
@@ -203,7 +227,7 @@ nixos-generate-config --show-hardware-config
 6. Access Syncthing web UI:
    - **URL:** http://192.168.1.154:8384
    - **Username:** ppb1701
-   - **Password:** (what you set in syncthing-secrets.nix)
+   - **Password:** (what you set in syncthing-devices.nix)
 
 > **Note:** The `private/` directory is gitignored to protect your device IDs and password.
 
@@ -215,28 +239,64 @@ See `docs/` directory for guides on:
 - Setting up remote access (Tailscale, WireGuard)
 - Configuring additional services
 
+## System Maintenance
+
+### Cleaning Up Old Generations
+
+Over time, NixOS accumulates old system generations that consume disk space. Use the cleanup script to recover space:
+
+```bash
+sudo ./cleanup-nixos.sh
+```
+
+**What it does:**
+- Removes system generations older than 7 days
+- Runs full garbage collection on unreachable store paths
+- Optimizes the Nix store (hard-links identical files to save space)
+- Cleans temporary files from `/tmp`
+- Removes build result symlinks
+
+**When to run:**
+- Monthly as routine maintenance
+- Before major system upgrades
+- When disk space is running low
+- After experimenting with multiple configurations
+
+**Expected results:**
+- Can free 5-20GB depending on how many old generations exist
+- Store optimization typically saves 10-30% through hard-linking
+- You'll see before/after disk usage statistics
+
+> **Tip:** Keep at least one or two recent generations in case you need to rollback. The script keeps the last 7 days by default.
+
 ## Repository Structure
 
 ```
 nixos-config/
 ├── configuration.nix              # Main system configuration
-├── hardware-configuration.nix     # Hardware-specific settings (example)
-├── modules/
-│   ├── adguard-home.nix          # AdGuard Home service config
-│   ├── networking.nix            # Network configuration
-│   └── syncthing.nix             # Syncthing config (optional)
-├── home/
-│   └── ppb1701.nix               # Home Manager configuration
-├── private/
-│   ├── syncthing-devices.nix.example  # Template for Syncthing devices
-│   └── syncthing-secrets.nix.example  # Template for Syncthing password
+├── configuration-uefi.nix         # UEFI boot variant
+├── hardware-configuration.nix     # Hardware-specific settings (auto-generated)
+├── build-iso.sh                   # ISO build script
+├── install-nixos.sh               # Automated installation script
+├── cleanup-nixos.sh               # System maintenance and cleanup script
+├── modules/                       # Service modules
+│   ├── adguard-home.nix          # AdGuard Home DNS filtering
+│   ├── networking.nix            # Network & firewall configuration
+│   ├── syncthing.nix             # File synchronization
+│   └── archived_rustdesk.nix     # RustDesk (disabled due to build issues)
+├── home/                          # Home Manager configurations
+│   └── ppb1701.nix               # User environment config
+├── private/                       # Private config (gitignored)
+│   ├── syncthing-devices.nix.example     # Device ID template
+└── README.md                     # This file
+├── docs/                          # Documentation
+│   ├── CUSTOMIZATION.md          # How to customize services
+│   ├── SERVICES.md               # Additional services guide
+│   ├── TROUBLESHOOTING.md        # Common issues & solutions
+│   └── BUILDING-PUBLIC-ISOS.md   # ISO building guide
 ├── iso-config.nix                # Custom ISO configuration
 ├── build-iso.sh                  # ISO build script
 ├── install-nixos.sh              # Automated installation script
-├── docs/
-│   ├── troubleshooting.md        # Common issues and solutions
-│   ├── customization.md          # How to customize
-│   └── services.md               # Adding additional services
 └── README.md                     # This file
 ```
 
@@ -328,15 +388,13 @@ Sensitive configuration is stored in the `private/` directory, which is gitignor
 ```
 private/
 ├── syncthing-devices.nix          # Your actual devices (gitignored)
-├── syncthing-secrets.nix          # GUI password (gitignored)
 ├── syncthing-devices.nix.example  # Template (committed)
-└── syncthing-secrets.nix.example  # Template (committed)
 ```
 
 **What's kept private:**
 
 - Syncthing device IDs
-- Syncthing GUI password
+- Syncthing GUI password (in syncthing-devices.nix)
 - Any other sensitive credentials
 
 **What's public:**
@@ -349,7 +407,7 @@ private/
 
 If you fork this repo and want to share ISOs publicly:
 
-1. Ensure `private/syncthing-devices.nix` and `private/syncthing-secrets.nix` are not present
+1. Ensure `private/syncthing-devices.nix` is not present (or is the .example file)
 2. Build ISO from clean checkout
 3. The resulting ISO will not contain device IDs or passwords
 
@@ -480,7 +538,7 @@ sudo nix-store --optimise
 - Check Nix store: `nix-store --verify --check-contents`
 - Try clean build: `rm -rf result && ./build-iso.sh`
 
-See [docs/troubleshooting.md](docs/troubleshooting.md) for more solutions.
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 
 ## Reporting Issues
 

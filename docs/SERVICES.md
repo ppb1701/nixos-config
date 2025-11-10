@@ -2,6 +2,362 @@
 
 This guide covers optional services you can add to your NixOS AdGuard Home server.
 
+## File Synchronization
+
+### Syncthing
+
+Syncthing provides continuous file synchronization across multiple devices. It works on Windows, macOS, Linux, Android, and more.
+
+**Already Included:** Syncthing is already configured in `modules/syncthing.nix` but requires device-specific configuration.
+
+#### Why Syncthing?
+
+- **Cross-platform:** Works on all major operating systems
+- **Private:** Direct peer-to-peer sync, no cloud service
+- **Secure:** All communication is encrypted
+- **LAN-optimized:** Fast local sync without internet dependency
+- **Conflict handling:** Automatic conflict detection and resolution
+- **Versioning:** Optional file versioning for safety
+
+#### Complete Setup Guide
+
+**1. Configure Private Settings**
+
+```bash
+# Copy example template
+cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+```
+
+**2. Set GUI Password**
+
+Edit `private/syncthing-devices.nix` and add the GUI password to the settings:
+
+```nix
+{
+  services.syncthing.settings = {
+    gui = {
+      user = "ppb1701";
+      password = "your-strong-password-here";
+    };
+    
+    devices = {
+      # Your devices will go here
+    };
+    
+    folders = {
+      # Your folders will go here
+    };
+  };
+}
+```
+
+**3. Get Device IDs**
+
+On **each device** you want to sync:
+
+- **Windows:** Install Syncthing from https://syncthing.net/ or via `winget install Syncthing.Syncthing`
+- **macOS:** Install via `brew install syncthing` or download from website
+- **Linux:** Usually available via package manager
+- **Android:** Install from Google Play or F-Droid
+
+After installation:
+1. Open web UI: `http://localhost:8384`
+2. Go to Actions → Show ID
+3. Copy the device ID (format: `ABCDEFG-HIJKLMN-OPQRSTU-...`)
+
+**4. Configure Devices and Folders**
+
+Edit `private/syncthing-devices.nix`:
+
+```nix
+{
+  services.syncthing.settings = {
+    devices = {
+      "windows-desktop" = {
+        id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
+      };
+      "macbook-pro" = {
+        id = "BCDEFGH-IJKLMNO-PQRSTUV-WXYZABC-DEFGHIJ-KLMNOPQ-RSTUVWX-YZABCDE";
+      };
+      "android-phone" = {
+        id = "CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD-EFGHIJK-LMNOPQR-STUVWXY-ZABCDEF";
+      };
+    };
+
+    folders = {
+      "Documents" = {
+        path = "/home/ppb1701/Documents";
+        devices = [ "windows-desktop" "macbook-pro" ];
+        versioning = {
+          type = "simple";
+          params.keep = "5";
+        };
+      };
+      "Photos" = {
+        path = "/home/ppb1701/Pictures";
+        devices = [ "android-phone" "macbook-pro" ];
+        ignorePerms = false;
+      };
+      "Projects" = {
+        path = "/home/ppb1701/Projects";
+        devices = [ "windows-desktop" "macbook-pro" ];
+        versioning = {
+          type = "staggered";
+          params = {
+            maxAge = "365";
+            cleanInterval = "3600";
+          };
+        };
+      };
+    };
+  };
+}
+```
+
+**5. Rebuild System**
+
+```bash
+sudo nixos-rebuild switch
+```
+
+**6. Complete Connection on Other Devices**
+
+On each device:
+1. Open Syncthing web UI: `http://localhost:8384`
+2. Add the NixOS server as a device:
+   - Click "Add Remote Device"
+   - Enter the server's device ID
+   - Give it a name (e.g., "NixOS Server")
+   - Save
+3. Accept the folder share request when it appears
+
+**Important:** On the NixOS server, you need to **accept the device connection**:
+- Open `http://192.168.1.154:8384`
+- A notification will appear asking to add the new device
+- Click "Add Device"
+- Confirm
+
+**7. Verify Sync**
+
+- Check web UI for sync status
+- Create test file on one device
+- Verify it appears on other devices
+- Check Syncthing logs: `journalctl -u syncthing -f`
+
+#### Accessing Syncthing Web UI
+
+**On the server (NixOS):**
+```
+http://192.168.1.154:8384
+Username: ppb1701
+Password: (from syncthing-secrets.nix)
+```
+
+**On other devices:**
+```
+http://localhost:8384
+(Usually no authentication required for localhost)
+```
+
+#### Advanced Syncthing Configuration
+
+**Folder Options:**
+
+```nix
+folders = {
+  "My Folder" = {
+    path = "/home/ppb1701/MyFolder";
+    devices = [ "device1" "device2" ];
+    
+    # Ignore patterns (like .gitignore)
+    ignorePerms = false;  # Preserve file permissions
+    
+    # Rescan interval (seconds)
+    rescanIntervalS = 3600;
+    
+    # Watch for file changes (faster sync)
+    fsWatcherEnabled = true;
+    
+    # File pull order
+    order = "random";  # or "alphabetic", "smallestFirst", "largestFirst"
+    
+    # Versioning
+    versioning = {
+      type = "simple";  # Keep X versions
+      params.keep = "10";
+    };
+    # Other types: "trashcan", "staggered", "external"
+  };
+};
+```
+
+**Staggered Versioning (Recommended for Important Data):**
+
+```nix
+versioning = {
+  type = "staggered";
+  params = {
+    maxAge = "365";        # Keep versions for 1 year
+    cleanInterval = "3600"; # Clean old versions hourly
+    versionsPath = "";      # Use default .stversions folder
+  };
+};
+```
+
+**Global Syncthing Options:**
+
+```nix
+settings.options = {
+  urAccepted = -1;  # Disable usage reporting
+  localAnnounceEnabled = true;   # LAN discovery
+  globalAnnounceEnabled = true;  # Internet discovery
+  relaysEnabled = true;          # Use relays if direct connection fails
+  natEnabled = true;             # NAT traversal
+  startBrowser = false;          # Don't auto-open browser
+  maxFolderConcurrency = 0;      # 0 = unlimited
+};
+```
+
+#### Troubleshooting Syncthing
+
+**Devices Not Discovering Each Other:**
+
+1. **Manually add device address** in `private/syncthing-devices.nix`:
+
+   ```nix
+   devices = {
+     "my-device" = {
+       id = "ABCDEFG-...";
+       addresses = [ "tcp://192.168.1.100:22000" ];
+     };
+   };
+   ```
+
+2. **Check firewall allows Syncthing:**
+
+   ```bash
+   # Sync port
+   ss -tlnp | grep 22000
+   
+   # Web UI port
+   ss -tlnp | grep 8384
+   
+   # Discovery port
+   ss -ulnp | grep 21027
+   ```
+
+3. **Verify service is running:**
+
+   ```bash
+   systemctl status syncthing
+   journalctl -u syncthing -f
+   ```
+
+4. **Enable discovery in Syncthing web UI:**
+   - Settings → Connections
+   - Ensure "Local Discovery" is enabled
+   - Ensure "Global Discovery" is enabled
+   - Ensure "Enable Relaying" is checked
+
+**Files Not Syncing:**
+
+- Check folder is "Up to Date" in web UI
+- Verify folder paths exist and are writable
+- Check disk space: `df -h`
+- Review ignore patterns
+- Check for file conflicts (files ending in `.sync-conflict-*`)
+- Review logs: `journalctl -u syncthing -n 100`
+
+**Slow Sync:**
+
+- Check network bandwidth
+- Consider using "Send Only" or "Receive Only" folders
+- Adjust `fsWatcherEnabled` (can be CPU intensive)
+- Reduce `rescanIntervalS` for less frequent scans
+
+**Permission Errors:**
+
+```bash
+# Ensure correct ownership
+sudo chown -R ppb1701:users /home/ppb1701/Documents
+
+# Check permissions
+ls -la /home/ppb1701/Documents
+```
+
+#### Syncthing on Different Platforms
+
+**Windows:**
+- Install: Download from https://syncthing.net/ or `winget install Syncthing.Syncthing`
+- Web UI: `http://localhost:8384`
+- Default folder: `%USERPROFILE%\Sync`
+
+**macOS:**
+- Install: `brew install syncthing` then `brew services start syncthing`
+- Web UI: `http://localhost:8384`
+- Default folder: `~/Sync`
+
+**Android:**
+- Install from Google Play or F-Droid
+- Grant storage permissions
+- Works great for camera backup
+
+**Linux (other distros):**
+```bash
+# Debian/Ubuntu
+sudo apt install syncthing
+systemctl --user enable syncthing
+systemctl --user start syncthing
+
+# Fedora
+sudo dnf install syncthing
+systemctl --user enable syncthing
+systemctl --user start syncthing
+```
+
+#### Security Best Practices
+
+1. **Use strong GUI password** in syncthing-secrets.nix
+2. **Enable HTTPS** for web UI in production
+3. **Don't expose web UI to internet** (LAN only by default)
+4. **Review sharing** - only share folders with trusted devices
+5. **Use .stignore** files to exclude sensitive data
+6. **Enable versioning** for important data
+
+#### Example .stignore File
+
+Create `.stignore` in any synced folder:
+
+```
+// Syncthing ignore patterns
+// https://docs.syncthing.net/users/ignoring.html
+
+// System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+// Temporary files
+*.tmp
+*.temp
+~$*
+
+// Build artifacts
+node_modules/
+target/
+*.o
+*.pyc
+
+// Large files
+*.iso
+*.dmg
+*.mkv
+
+// Specific paths
+(?d)cache/
+(?d)logs/
+```
+
 ## Monitoring Services
 
 ### Netdata
@@ -254,15 +610,13 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 ```
 
-## File Sync & Storage
-
-### Syncthing
-
-Already covered in main README. See `private/syncthing-devices.nix.example`.
+## File Storage
 
 ### Nextcloud
 
-Your own cloud storage platform.
+Your own cloud storage platform (alternative to Syncthing for web-based access).
+
+**Note:** This is an alternative/complement to Syncthing. Syncthing is better for peer-to-peer sync; Nextcloud is better for web access and sharing.
 
 **Create `modules/nextcloud.nix`:**
 

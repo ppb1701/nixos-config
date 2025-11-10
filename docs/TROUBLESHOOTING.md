@@ -480,6 +480,89 @@ This guide covers common issues you might encounter when setting up or running y
 
 4. Reduce services if needed
 
+### Low Disk Space
+
+**Symptoms:**
+- Disk space warnings
+- `nix-store` operations fail with "no space left on device"
+- System updates fail due to insufficient space
+- `/nix/store` consuming many gigabytes
+
+**Solutions:**
+
+1. **Run the cleanup script (recommended):**
+   ```bash
+   sudo /etc/nixos/cleanup-nixos.sh
+   ```
+   
+   This automated script will:
+   - Show disk usage before and after
+   - Remove generations older than 7 days
+   - Run full garbage collection
+   - Optimize store with hard-linking
+   - Clean temporary files
+
+2. **Check what's using space:**
+   ```bash
+   # Check overall disk usage
+   df -h /
+   
+   # Check Nix store size
+   du -sh /nix/store
+   
+   # Find largest store paths
+   du -sh /nix/store/* | sort -hr | head -20
+   ```
+
+3. **Manually remove old generations:**
+   ```bash
+   # List all generations
+   sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+   
+   # Delete specific generations
+   sudo nix-env --delete-generations 10 11 12 --profile /nix/var/nix/profiles/system
+   
+   # Delete all but current and previous
+   sudo nix-env --delete-generations old --profile /nix/var/nix/profiles/system
+   
+   # Delete generations older than 30 days
+   sudo nix-collect-garbage --delete-older-than 30d
+   ```
+
+4. **Run garbage collection:**
+   ```bash
+   # Full garbage collection
+   sudo nix-collect-garbage -d
+   
+   # This removes ALL unreachable store paths
+   # Make sure you don't need to rollback first!
+   ```
+
+5. **Optimize Nix store:**
+   ```bash
+   sudo nix-store --optimise
+   ```
+   
+   This hard-links identical files together, typically saving 10-30% of store size.
+
+6. **Clean old result symlinks:**
+   ```bash
+   find /etc/nixos -name "result*" -type l -delete
+   find ~ -name "result*" -type l -delete
+   ```
+
+**Expected Results:**
+- Removing old generations: 5-20GB freed
+- Garbage collection: 2-10GB freed (depends on orphaned packages)
+- Store optimization: 10-30% reduction through deduplication
+- Combined: Can recover 20-50GB on a system with many old generations
+
+**Prevention:**
+- Run `cleanup-nixos.sh` monthly
+- Don't keep more than 5-10 generations
+- Clean up after experimenting with new packages
+- Remove unused packages from configuration
+
 ### Slow DNS Responses
 
 **Symptoms:**
@@ -508,6 +591,314 @@ This guide covers common issues you might encounter when setting up or running y
    ```bash
    ping 1.1.1.1
    ```
+
+## Syncthing Issues
+
+### Devices Not Discovering Each Other
+
+**Symptoms:**
+- Devices show as "Disconnected"
+- Can't see other devices on network
+- Sync not starting
+
+**Solutions:**
+
+1. **Most Common Fix:** Manually add device address in `private/syncthing-devices.nix`:
+
+   ```nix
+   devices = {
+     "my-device" = {
+       id = "ABCDEFG-HIJKLMN-...";
+       addresses = [ "tcp://192.168.1.100:22000" ];  # Add this line
+     };
+   };
+   ```
+
+   Then rebuild: `sudo nixos-rebuild switch`
+
+2. **Check devices are announced:**
+   - On each device, open Syncthing web UI
+   - Go to Actions → Show ID
+   - Verify device IDs match in configuration
+
+3. **Enable discovery options** in Syncthing web UI:
+   - Settings → Connections
+   - Enable "Local Discovery"
+   - Enable "Global Discovery"
+   - Enable "Enable Relaying"
+
+4. **Check firewall allows Syncthing ports:**
+
+   ```bash
+   ss -tlnp | grep 22000  # Sync port
+   ss -ulnp | grep 21027  # Discovery port
+   ss -tlnp | grep 8384   # Web UI port
+   ```
+
+5. **Verify service is running:**
+
+   ```bash
+   systemctl status syncthing
+   journalctl -u syncthing -f
+   ```
+
+6. **Check for VPN interference:**
+   - VPNs can block local network discovery
+   - Temporarily disable VPN to test
+   - Security software may also interfere
+
+### Syncthing GUI Not Accessible
+
+**Symptoms:**
+- Can't access http://192.168.1.154:8384
+- Connection refused
+
+**Solutions:**
+
+1. Verify Syncthing is running:
+   ```bash
+   systemctl status syncthing
+   ```
+
+2. Check if port 8384 is listening:
+   ```bash
+   ss -tlnp | grep 8384
+   ```
+
+3. Verify GUI password is set in `private/syncthing-secrets.nix`
+
+4. Check Syncthing logs:
+   ```bash
+   journalctl -u syncthing -n 50
+   ```
+
+### Files Not Syncing
+
+**Symptoms:**
+- Folders stuck "Syncing" or show errors
+- Files not appearing on other devices
+
+**Solutions:**
+
+1. Check folder status in web UI
+2. Verify folder paths exist and have correct permissions:
+
+   ```bash
+   ls -la /home/ppb1701/Documents
+   sudo chown -R ppb1701:users /home/ppb1701/Documents
+   ```
+
+3. Check disk space:
+   ```bash
+   df -h
+   ```
+
+4. Look for conflicts (files ending in `.sync-conflict-*`)
+
+5. Review `.stignore` patterns if using
+
+6. Check logs for specific errors:
+   ```bash
+   journalctl -u syncthing | grep -i error
+   ```
+
+## Home Manager Issues
+
+### home-manager/nixos Not Found
+
+**Symptoms:**
+```
+error: file 'home-manager/nixos' was not found in the Nix search path
+```
+
+**Solutions:**
+
+1. Add Home Manager channel:
+
+   ```bash
+   sudo nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+   sudo nix-channel --update
+   ```
+
+2. Logout and login again (or reboot) to update `NIX_PATH`
+
+3. If still not working, comment out Home Manager in `configuration.nix` temporarily:
+
+   ```nix
+   imports = [
+     ./modules/adguard-home.nix
+     # <home-manager/nixos>  # Comment out temporarily
+   ];
+   
+   # home-manager.users.ppb1701 = import ./home/ppb1701.nix;  # Comment out
+   ```
+
+4. Rebuild: `sudo nixos-rebuild switch`
+
+5. Add Home Manager back later after channel is properly set up
+
+### Channel Version Mismatch
+
+**Symptoms:**
+- Errors about incompatible versions
+- Home Manager complains about NixOS version
+
+**Solutions:**
+
+1. Check NixOS version:
+   ```bash
+   nixos-version
+   ```
+
+2. Use matching Home Manager channel:
+   ```bash
+   # For NixOS 24.05
+   sudo nix-channel --add https://github.com/nix-community/home-manager/archive/release-24.05.tar.gz home-manager
+   
+   # For NixOS unstable
+   sudo nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+   
+   sudo nix-channel --update
+   ```
+
+## Build Issues
+
+### RustDesk Build Error
+
+**Symptoms:**
+```
+thread 'main' panicked at cargo-auditable/src/cargo_auditable.rs:40:39:
+called `Option::unwrap()` on a `None` value
+error: builder for '/nix/store/...-rustdesk-1.3.8.drv' failed with exit code 101
+```
+
+**Explanation:**
+
+RustDesk has a known build error in NixOS 25.05 related to the `cargo-auditable` tool. This is an upstream issue being tracked in the NixOS package repository.
+
+**Solutions:**
+
+1. **Remove RustDesk from configuration** (recommended):
+
+   Comment out rustdesk module in `configuration.nix`:
+   ```nix
+   imports = [
+     ./modules/adguard-home.nix
+     ./modules/networking.nix
+     # ./modules/rustdesk.nix  # Disabled due to build error
+   ];
+   ```
+
+   Remove rustdesk from packages if installed directly
+
+2. **Use alternative remote access:**
+   - SSH (already configured): `ssh ppb1701@192.168.1.154`
+   - Tailscale VPN (see SERVICES.md)
+   - Traditional VNC server
+
+3. **Wait for upstream fix:**
+   - Monitor NixOS issue tracker
+   - Update channels when fixed: `sudo nix-channel --update`
+
+### ISO Build Fails
+
+**Symptoms:**
+- `./build-iso.sh` fails
+- Insufficient disk space errors
+- Nix store errors
+
+**Solutions:**
+
+1. Check available disk space (need 20GB+):
+   ```bash
+   df -h
+   ```
+
+2. Clean up old generations:
+   ```bash
+   sudo nix-collect-garbage -d
+   sudo nix-store --optimise
+   ```
+
+3. Verify Nix store integrity:
+   ```bash
+   nix-store --verify --check-contents
+   ```
+
+4. Try clean build:
+   ```bash
+   rm -rf result
+   ./build-iso.sh
+   ```
+
+## Network Configuration Issues
+
+### Static IP Not Working in VM
+
+**Symptoms:**
+- VM can't reach network after setting static IP
+- Network unreachable errors
+
+**Explanation:**
+
+VMs often use NAT networking (10.0.2.x) or different subnets than your physical network (192.168.1.x).
+
+**Solutions:**
+
+1. **For VM testing:** Comment out static IP configuration in `modules/networking.nix`:
+
+   ```nix
+   # Static IP configuration (DISABLED FOR VM TESTING)
+   # networking.interfaces.enp0s3 = {
+   #   ipv4.addresses = [{
+   #     address = "192.168.1.154";
+   #     prefixLength = 24;
+   #   }];
+   # };
+   # 
+   # networking.defaultGateway = "192.168.1.1";
+   ```
+
+2. **Let VM use DHCP:** The VM will get an IP automatically from VirtualBox/VMware NAT
+
+3. **For production:** Uncomment static IP section and set correct interface name
+
+4. **Find VM's interface name:**
+   ```bash
+   ip addr show
+   # Look for interface with IP (usually enp0s3, ens18, etc.)
+   ```
+
+### Wrong Interface Name
+
+**Symptoms:**
+- Network configuration fails
+- Interface not found errors
+
+**Solutions:**
+
+1. Find correct interface name:
+   ```bash
+   ip link show
+   # or
+   ip addr show
+   ```
+
+2. Update `modules/networking.nix` with correct name:
+   ```nix
+   interfaces.YOUR_INTERFACE_NAME = {  # Change this
+     ipv4.addresses = [{
+       address = "192.168.1.154";
+       prefixLength = 24;
+     }];
+   };
+   ```
+
+   Common interface names:
+   - `enp0s3`, `enp1s0` (predictable names)
+   - `ens18`, `ens33` (common in VMs)
+   - `eth0`, `eth1` (legacy names)
+   - `eno1`, `eno2` (onboard ethernet)
 
 ## Getting More Help
 

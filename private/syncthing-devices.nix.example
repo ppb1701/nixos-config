@@ -6,6 +6,12 @@
 
 {
   services.syncthing.settings = {
+    # Set your Syncthing web UI password here
+    gui = {
+      user = "ppb1701";
+      password = "change-me-to-a-strong-password";
+    };
+
     devices = {
       # Add your devices here
       # Get device IDs from Syncthing web UI (Actions → Show ID)
