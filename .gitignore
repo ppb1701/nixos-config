@@ -19,6 +19,7 @@ result-*
 private/syncthing-devices.nix
 private/*.nix
 !private/*.nix.example
+private/blog/
 
 # OS files
 .DS_Store
@@ -30,3 +31,4 @@ Thumbs.db
 hardware-configuration.nix
 chatlog.txt
 docs/BLOG-SERIES-PLAN.md
+private/BLOG-SERIES-PLAN.md
