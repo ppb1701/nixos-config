@@ -46,7 +46,7 @@
 
         # Works on physical machine, ignored in VM
         local_ptr_upstreams = [
-          "192.168.1.1"  # Your ASUS router
+          "192.168.50.1"  # Your ASUS router
         ];
       };  # <- dns closes HERE (after local_ptr_upstreams)
 

@@ -192,12 +192,13 @@ in
   nix.optimise.automatic = true;
   nix.optimise.dates = [ "weekly" ];
 
-  system.autoUpgrade = {
-    enable = true;
-    allowReboot = false;  # Set to true if you want automatic reboots
-    dates = "04:00";  # Run at 4 AM daily
-    flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
-  };
+ # ENABLE IF WANT TO PROPAGATE CHANGES ACCROSS MULTIPLE SYSTEMS AUTOMATICALLY
+ # system.autoUpgrade = {
+  #  enable = true;
+   # allowReboot = false;  # Set to true if you want automatic reboots
+    #dates = "04:00";  # Run at 4 AM daily
+    #flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
+  #};
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION
