@@ -89,26 +89,7 @@ in
   # ═══════════════════════════════════════════════════════════════════════════
   programs.starship = {
     enable = true;
-    settings = {
-      add_newline = false;
-
-      # Git branch with icon
-      git_branch = {
-        symbol = "🌱 ";
-        format = "[$symbol$branch]($style) ";
-      };
-
-      # Git status (shows dirty files, etc.)
-      git_status = {
-        format = "([$all_status$ahead_behind]($style) )";
-      };
-
-      # Show command execution time
-      cmd_duration = {
-        min_time = 500;
-        format = "took [$duration]($style) ";
-      };
-    };
+    #using my own optional toml   
   };
 
   programs.zsh = {
@@ -116,9 +97,7 @@ in
     enableCompletion = true;
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
-    interactiveShellInit = ''
-      eval "$(starship init zsh)"
-    '';
+   
     shellAliases = {
       ll = "ls -lah";
       update = "sudo nixos-rebuild switch";
