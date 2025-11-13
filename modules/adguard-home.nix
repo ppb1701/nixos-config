@@ -46,7 +46,7 @@
 
         # Works on physical machine, ignored in VM
         local_ptr_upstreams = [
-          "192.168.1.1"  # Your ASUS router
+          "192.168.50.1"  # Your ASUS router
         ];
       };  # <- dns closes HERE (after local_ptr_upstreams)
 
@@ -105,6 +105,43 @@
           id = 6;
         }
       ];
+
+      # Custom filtering rules for streaming services
+      filtering = {
+        custom_rules = [
+          # ===== PARAMOUNT+ RULES =====
+          # Block Paramount+ ad domains
+          "||ads.cbsi.com^"
+          "||ads-fa.cdn.cbsi.com^"
+          "||cbsinteractive.hb.omtrdc.net^"
+          "||pubads.g.doubleclick.net^"
+
+          # Whitelist Paramount+ content domains
+          "@@||cbsaavideo.com^"
+          "@@||cbsi.com^"
+          "@@||cbsivideo.com^"
+          "@@||paramount.com^"
+          "@@||link.theplatform.com^"
+
+          # ===== HISTORY CHANNEL RULES =====
+          # Block History Channel / A&E Networks ad domains
+          "||ads.aenetworks.com^"
+          "||ads-east.aenetworks.com^"
+          "||ads-west.aenetworks.com^"
+          "||googleads.g.doubleclick.net^"
+
+          # Whitelist History Channel content domains
+          "@@||aenetworks.com^"
+          "@@||history.com^"
+          "@@||historyvault.com^"
+
+          # ===== APPLE TV: BLOCK iCLOUD PRIVATE RELAY =====
+          # (Prevents Apple TV from bypassing your DNS)
+          "||mask.icloud.com^"
+          "||mask-h2.icloud.com^"
+          "||mask-api.icloud.com^"
+        ];
+          };
 
       querylog = {
         enabled = true;
