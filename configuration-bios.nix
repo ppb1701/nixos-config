@@ -77,11 +77,12 @@ in
   home-manager.backupFileExtension = "backup";
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # BOOTLOADER - systemd-boot (UEFI Mode)
+  # BOOTLOADER - GRUB (BIOS/Legacy Mode)
   # ═══════════════════════════════════════════════════════════════════════════
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.configurationLimit = 5;
-  boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.grub = {
+    enable = true;
+    device = "/dev/sda";  # Install GRUB to MBR
+  };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM SETTINGS
