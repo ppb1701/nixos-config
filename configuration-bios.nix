@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 # ═══════════════════════════════════════════════════════════════════════════
 # ⚠️⚠️⚠️  CRITICAL SECURITY WARNING - READ THIS FIRST  ⚠️⚠️⚠️
@@ -33,6 +33,7 @@
 #      
 #      Change these settings:
 #        security.sudo.wheelNeedsPassword = true;
+#        services.openssh.settings.PasswordAuthentication = false;
 #
 #   4. Apply the changes:
 #      sudo nixos-rebuild switch
@@ -47,18 +48,33 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════
 
+let
+  # Explicitly add modules directory to Nix store
+  modulesDir = builtins.path {
+    path = /etc/nixos/modules;
+    name = "nixos-modules";
+  };
+
+  # Explicitly add private directory to Nix store
+  privateDir = builtins.path {
+    path = /etc/nixos/private;
+    name = "nixos-private";
+  };
+in
 {
   imports = [
     ./hardware-configuration.nix
-    ./modules/adguard-home.nix
-    ./modules/networking.nix
-    ./modules/syncthing.nix
-  ] ++ (if builtins.pathExists ./private/syncthing-devices.nix
-        then [ ./private/syncthing-devices.nix ]
-        else [])
-    ++ (if builtins.pathExists ./private/secrets.nix
-        then [ ./private/secrets.nix ]
-        else []);
+    "${modulesDir}/adguard-home.nix"
+    "${modulesDir}/networking.nix"
+    "${modulesDir}/syncthing.nix"
+    <home-manager/nixos>  # ← HOME MANAGER INTEGRATION
+  ];
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HOME MANAGER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  home-manager.users.ppb1701 = import ./home.nix;
+  home-manager.backupFileExtension = "backup";
 
   # ═══════════════════════════════════════════════════════════════════════════
   # BOOTLOADER - GRUB (BIOS/Legacy Mode)
@@ -88,7 +104,7 @@
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # DESKTOP ENVIRONMENT (Minimal - for occasional local access)
+  # DESKTOP ENVIRONMENT - LXQt (Minimal, for occasional local access)
   # ═══════════════════════════════════════════════════════════════════════════
   services.xserver = {
     enable = true;
@@ -107,7 +123,7 @@
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # AUDIO
+  # AUDIO - PipeWire
   # ═══════════════════════════════════════════════════════════════════════════
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
@@ -124,86 +140,76 @@
   services.printing.enable = true;
   services.gnome.gnome-keyring.enable = true;
 
-  # SSH - Configured for password authentication
-  services.openssh = {
-    enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = true;
-      PermitEmptyPasswords = false;
-    };
-  };
-
   # ═══════════════════════════════════════════════════════════════════════════
-  # ZSH & OH MY ZSH CONFIGURATION
+  # ZSH CONFIGURATION (System-level)
   # ═══════════════════════════════════════════════════════════════════════════
-
   programs.zsh = {
     enable = true;
     enableCompletion = true;
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
-
-    ohMyZsh = {
-      enable = true;
-      theme = "robbyrussell";
-      plugins = [
-        "git"
-        "sudo"
-        "history"
-        "colored-man-pages"
-        "command-not-found"
-        "z"
-        "extract"
-      ];
-    };
-
-    shellAliases = {
-      ll = "ls -lah";
-      update = "sudo nixos-rebuild switch";
-      edit-config = "sudo micro /etc/nixos/configuration.nix";
-    };
   };
+
+  # NOTE: Starship is now managed by Home Manager in home.nix
+  # The system-level starship.enable has been removed
 
   # ═══════════════════════════════════════════════════════════════════════════
   # USER CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════
-
-  # Allows users to change passwords with 'passwd' command
-  users.mutableUsers = true;
-
   users.users.ppb1701 = {
     isNormalUser = true;
-    description = "Patrick Boyd";
-    extraGroups = [ "networkmanager" "wheel" ];
+    description = "ppb1701";
+    extraGroups = [ "wheel" "networkmanager" ];
     shell = pkgs.zsh;
 
     # ⚠️ TEMPORARY PASSWORD - CHANGE IMMEDIATELY AFTER INSTALLATION ⚠️
     # Default password: "nixos"
     # This is INSECURE and must be changed on first login!
     initialPassword = "nixos";
+
+    openssh.authorizedKeys.keys = [
+      # Add your SSH public keys here if you have them
+    ];
   };
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SECURITY
+  # ═══════════════════════════════════════════════════════════════════════════
   # ⚠️ TEMPORARY: Allows sudo without password for initial setup
   # Change to true after setting your password!
   security.sudo.wheelNeedsPassword = false;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # SYSTEM PACKAGES
+  # SSH
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "no";
+      # ⚠️ TEMPORARY: Password authentication enabled for initial setup
+      # Change to false after adding SSH keys!
+      PasswordAuthentication = true;
+    };
+  };
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PACKAGES
   # ═══════════════════════════════════════════════════════════════════════════
   environment.systemPackages = with pkgs; [
     # CLI tools
     vim
     wget
+    curl
     git
     htop
     btop
     neofetch
-    gitui
     micro
+    gitui
 
     # Desktop packages (for occasional local access)
     vivaldi
+    vivaldi-ffmpeg-codecs
     lxde.lxtask
     lxqt.screengrab
     lxqt.pavucontrol-qt
@@ -218,12 +224,10 @@
     networkmanagerapplet
     feh
 
-    # Fonts for powerline themes
-    # NEW (correct):
+    # Fonts for Starship/powerline themes
     nerd-fonts.fira-code
     nerd-fonts.jetbrains-mono
     nerd-fonts.meslo-lg
-    
   ];
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -231,32 +235,27 @@
   # ═══════════════════════════════════════════════════════════════════════════
   nixpkgs.config.allowUnfree = true;
 
-  # Automatic garbage collection
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    auto-optimise-store = true;
+  };
+
   nix.gc = {
     automatic = true;
     dates = "weekly";
     options = "--delete-older-than 30d";
   };
 
-  # Optimize store
   nix.optimise.automatic = true;
   nix.optimise.dates = [ "weekly" ];
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# NIX BUILD SETTINGS - Use disk instead of RAM for builds
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Force builds to use /nix/tmp instead of RAM-based /tmp
-systemd.services.nix-daemon.environment = {
-  TMPDIR = "/nix/tmp";
-};
-
-# Create the directory
-systemd.tmpfiles.rules = [
-  "d /nix/tmp 0755 root root -"
-];
-
+  # ENABLE IF WANT TO PROPAGATE CHANGES ACROSS MULTIPLE SYSTEMS AUTOMATICALLY
+  # system.autoUpgrade = {
+  #   enable = true;
+  #   allowReboot = false;  # Set to true if you want automatic reboots
+  #   dates = "04:00";  # Run at 4 AM daily
+  #   flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
+  # };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION

@@ -19,7 +19,14 @@ in
     "${modulesDir}/adguard-home.nix"
     "${modulesDir}/networking.nix"
     "${modulesDir}/syncthing.nix"
+    <home-manager/nixos>  # ← HOME MANAGER INTEGRATION
   ];
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HOME MANAGER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  home-manager.users.ppb1701 = import ./home.nix;  
+  home-manager.backupFileExtension = "backup";
 
   # ═══════════════════════════════════════════════════════════════════════════
   # BOOTLOADER - systemd-boot (UEFI Mode)
@@ -85,25 +92,17 @@ in
   services.gnome.gnome-keyring.enable = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # ZSH & STARSHIP CONFIGURATION
+  # ZSH CONFIGURATION (System-level)
   # ═══════════════════════════════════════════════════════════════════════════
-  programs.starship = {
-    enable = true;
-    #using my own optional toml   
-  };
-
   programs.zsh = {
     enable = true;
     enableCompletion = true;
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
-   
-    shellAliases = {
-      ll = "ls -lah";
-      update = "sudo nixos-rebuild switch";
-      edit-config = "sudo micro /etc/nixos/configuration.nix";
-    };
   };
+
+  # NOTE: Starship is now managed by Home Manager in home.nix
+  # The system-level starship.enable has been removed
 
   # ═══════════════════════════════════════════════════════════════════════════
   # USER CONFIGURATION
@@ -192,13 +191,13 @@ in
   nix.optimise.automatic = true;
   nix.optimise.dates = [ "weekly" ];
 
- # ENABLE IF WANT TO PROPAGATE CHANGES ACCROSS MULTIPLE SYSTEMS AUTOMATICALLY
- # system.autoUpgrade = {
-  #  enable = true;
-   # allowReboot = false;  # Set to true if you want automatic reboots
-    #dates = "04:00";  # Run at 4 AM daily
-    #flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
-  #};
+  # ENABLE IF WANT TO PROPAGATE CHANGES ACROSS MULTIPLE SYSTEMS AUTOMATICALLY
+  # system.autoUpgrade = {
+  #   enable = true;
+  #   allowReboot = false;  # Set to true if you want automatic reboots
+  #   dates = "04:00";  # Run at 4 AM daily
+  #   flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
+  # };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION
