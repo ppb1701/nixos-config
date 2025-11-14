@@ -199,6 +199,56 @@ in
   #   flake = "github:ppb1701/nixos-config";  # Use your GitHub repo
   # };
 
+networking = {
+  # Force static DNS servers globally
+  nameservers = [ "76.76.2.2" "76.76.10.2" ];
+
+  networkmanager = {
+    enable = true;
+    dns = "systemd-resolved";
+
+    # This ensures Control D is prioritized over DHCP DNS
+    insertNameservers = [ "76.76.2.2" "76.76.10.2" ];
+
+    # Declaratively configure the wired connection
+    ensureProfiles = {
+      environmentFiles = [ ];
+      profiles = {
+        "Wired connection 1" = {
+          connection = {
+            id = "Wired connection 1";
+            uuid = "8e533501-4cf6-377b-b52c-2ae7c2c26b3a";
+            type = "ethernet";
+            interface-name = "enp1s0";
+          };
+          ipv4 = {
+            method = "auto";
+            ignore-auto-dns = true;  # ← THE KEY!
+            dns = "76.76.2.2;76.76.10.2;";
+          };
+          ipv6 = {
+            method = "auto";
+            ignore-auto-dns = true;  # ← THE KEY!
+          };
+        };
+      };
+    };
+  };
+};
+
+# Configure systemd-resolved
+services.resolved = {
+  enable = true;
+  dnssec = "false";
+  domains = [ "~." ];
+  fallbackDns = [ "76.76.2.2" "76.76.10.2" ];
+  extraConfig = ''
+    [Resolve]
+    DNS=76.76.2.2 76.76.10.2
+    FallbackDNS=76.76.2.2 76.76.10.2
+    DNSStubListener=no
+  '';
+};
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM VERSION
   # ═══════════════════════════════════════════════════════════════════════════
