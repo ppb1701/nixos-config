@@ -1,7 +1,18 @@
 { config, pkgs, ... }:
 
 {
-  # AdGuard Home - DNS filtering and ad blocking
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEMD-RESOLVED CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.resolved = {
+    enable = true;
+    dnssec = "allow-downgrade";
+    fallbackDns = [ "76.76.2.2" "76.76.10.2" ];
+  };
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
+  # ═══════════════════════════════════════════════════════════════════════════
   services.adguardhome = {
     enable = true;
     mutableSettings = true;
@@ -40,7 +51,9 @@
     };
   };
 
-  # Syncthing - File synchronization
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYNCTHING - FILE SYNCHRONIZATION
+  # ═══════════════════════════════════════════════════════════════════════════
   services.syncthing = {
     enable = true;
     user = "ppb1701";
@@ -55,48 +68,30 @@
     settings = import /etc/nixos/private/syncthing-secrets.nix;
   };
 
-  # Nginx - Reverse Proxy for clean local URLs
- # Nginx - Reverse Proxy for clean local URLs
- services.nginx = {
-   enable = true;
- 
-   recommendedProxySettings = true;
-   recommendedTlsSettings = true;
- 
-   virtualHosts = {
-     "adguard.home" = {
-       default = true;  # Make this the default server
-       locations."/" = {
-         proxyPass = "http://127.0.0.1:3000";
-         proxyWebsockets = true;
-       };
-     };
- 
-     "syncthing.home" = {
-       locations."/" = {
-         proxyPass = "http://127.0.0.1:8384";
-         proxyWebsockets = true;
-       };
-     };
-   };
- };
- 
-
-  # Firewall rules
-  networking.firewall = {
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NGINX - REVERSE PROXY FOR CLEAN LOCAL URLS
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.nginx = {
     enable = true;
-    allowedTCPPorts = [
-      22      # SSH
-      53      # AdGuard Home DNS
-      80      # Nginx HTTP
-      3000    # AdGuard Home web UI (direct access)
-      8384    # Syncthing web UI (direct access)
-      22000   # Syncthing file transfers
-    ];
-    allowedUDPPorts = [
-      53      # AdGuard Home DNS
-      22000   # Syncthing discovery
-      21027   # Syncthing discovery
-    ];
+
+    recommendedProxySettings = true;
+    recommendedTlsSettings = true;
+
+    virtualHosts = {
+      "adguard.home" = {
+        default = true;  # Make this the default server
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:3000";
+          proxyWebsockets = true;
+        };
+      };
+
+      "syncthing.home" = {
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:8384";
+          proxyWebsockets = true;
+        };
+      };
+    };
   };
 }

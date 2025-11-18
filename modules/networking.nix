@@ -49,24 +49,25 @@
   programs.nm-applet.enable = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # FIREWALL CONFIGURATION
+  # FIREWALL CONFIGURATION (CONSOLIDATED FROM services.nix)
   # ═══════════════════════════════════════════════════════════════════════════
   networking.firewall = {
     enable = true;
 
     allowedTCPPorts = [
       22      # SSH
-      53      # DNS (TCP)
-      80      # HTTP
+      53      # DNS (TCP) - AdGuard Home
+      80      # HTTP - Nginx
       443     # HTTPS
-      3000    # AdGuard Home web UI
-      8384    # Syncthing web UI
-      22000   # Syncthing sync protocol
+      3000    # AdGuard Home web UI (direct access)
+      8384    # Syncthing web UI (direct access)
+      22000   # Syncthing file transfers
     ];
 
     allowedUDPPorts = [
       53      # DNS (UDP) - CRITICAL for AdGuard Home!
-      22000   # Syncthing sync protocol
+      22000   # Syncthing discovery
+      21027   # Syncthing discovery
     ];
   };
 }
