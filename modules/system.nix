@@ -113,6 +113,8 @@ in
     neofetch
     micro
     gitui
+    dig
+    jq
 
     # Desktop packages (for occasional local access)
     vivaldi
