@@ -2,15 +2,6 @@
 
 {
   # ═══════════════════════════════════════════════════════════════════════════
-  # SYSTEMD-RESOLVED CONFIGURATION
-  # ═══════════════════════════════════════════════════════════════════════════
-  services.resolved = {
-    enable = true;
-    dnssec = "allow-downgrade";
-    fallbackDns = [ "76.76.2.2" "76.76.10.2" ];
-  };
-
-  # ═══════════════════════════════════════════════════════════════════════════
   # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
   # ═══════════════════════════════════════════════════════════════════════════
   services.adguardhome = {
@@ -60,7 +51,7 @@
     dataDir = "/home/ppb1701";
     configDir = "/home/ppb1701/.config/syncthing";
 
-    guiAddress = "0.0.0.0:8384";  # Allow connections from any interface
+    guiAddress = "0.0.0.0:8384";
 
     overrideDevices = true;
     overrideFolders = true;
@@ -79,7 +70,7 @@
 
     virtualHosts = {
       "adguard.home" = {
-        default = true;  # Make this the default server
+        default = true;
         locations."/" = {
           proxyPass = "http://127.0.0.1:3000";
           proxyWebsockets = true;

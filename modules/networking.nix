@@ -1,6 +1,9 @@
 { config, pkgs, ... }:
 
 {
+  # Disable systemd-resolved to free port 53 for AdGuard Home
+  services.resolved.enable = false;
+
   # ═══════════════════════════════════════════════════════════════════════════
   # HOSTNAME
   # ═══════════════════════════════════════════════════════════════════════════
@@ -49,7 +52,7 @@
   programs.nm-applet.enable = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # FIREWALL CONFIGURATION (CONSOLIDATED FROM services.nix)
+  # FIREWALL CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════
   networking.firewall = {
     enable = true;

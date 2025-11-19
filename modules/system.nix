@@ -1,30 +1,18 @@
 { config, pkgs, ... }:
 
-let
-  # Make private directory available in Nix store
-  privateDir = builtins.path {
-    path = /etc/nixos/private;
-    name = "nixos-private";
-  };
-in
 {
-  imports = [
-    "${privateDir}/ssh-keys.nix"  # Import SSH authorized keys
-  ];
-
   # ═══════════════════════════════════════════════════════════════════════════
-  # BOOTLOADER - systemd-boot (UEFI Mode)
+  # BOOTLOADER
   # ═══════════════════════════════════════════════════════════════════════════
   boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # LOCALE & TIME
+  # TIMEZONE & LOCALE
   # ═══════════════════════════════════════════════════════════════════════════
   time.timeZone = "America/New_York";
-
   i18n.defaultLocale = "en_US.UTF-8";
+
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "en_US.UTF-8";
     LC_IDENTIFICATION = "en_US.UTF-8";
@@ -38,13 +26,12 @@ in
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # DESKTOP ENVIRONMENT - LXQt (Minimal, for occasional local access)
+  # DESKTOP ENVIRONMENT - LXQT
   # ═══════════════════════════════════════════════════════════════════════════
   services.xserver = {
     enable = true;
     displayManager.lightdm.enable = true;
     desktopManager.lxqt.enable = true;
-
     xkb = {
       layout = "us";
       variant = "";
@@ -57,9 +44,9 @@ in
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # AUDIO - PipeWire
+  # AUDIO - PIPEWIRE
   # ═══════════════════════════════════════════════════════════════════════════
-  services.pulseaudio.enable = false;
+  hardware.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -69,100 +56,70 @@ in
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # ZSH CONFIGURATION (System-level)
-  # ═══════════════════════════════════════════════════════════════════════════
-  programs.zsh = {
-    enable = true;
-    enableCompletion = true;
-    autosuggestions.enable = true;
-    syntaxHighlighting.enable = true;
-  };
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # USER CONFIGURATION
+  # USERS
   # ═══════════════════════════════════════════════════════════════════════════
   users.users.ppb1701 = {
     isNormalUser = true;
     description = "ppb1701";
-    extraGroups = [ "wheel" "networkmanager" ];
-    shell = pkgs.zsh;
-
-    # SSH keys imported from private/ssh-keys.nix
-    # Password already set via passwd command
-    # For future reference, use hashedPassword for security:
-    # Generate with: mkpasswd -m sha-512
-    # hashedPassword = "your-hashed-password-here";
+    extraGroups = [ "networkmanager" "wheel" ];
+    openssh.authorizedKeys.keys = import /etc/nixos/private/ssh-keys.nix;
+    packages = with pkgs; [
+      kdePackages.kate
+    ];
   };
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # SECURITY
-  # ═══════════════════════════════════════════════════════════════════════════
-  security.sudo.wheelNeedsPassword = true;
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYSTEM PACKAGES
   # ═══════════════════════════════════════════════════════════════════════════
   environment.systemPackages = with pkgs; [
-    # CLI tools
     vim
     wget
     curl
     git
     htop
-    btop
-    neofetch
     micro
+    starship
     gitui
     dig
     jq
-
-    # Desktop packages (for occasional local access)
-    vivaldi
-    vivaldi-ffmpeg-codecs
-    lxde.lxtask
-    lxqt.screengrab
-    lxqt.pavucontrol-qt
-    lxqt.qterminal
-    lxqt.pcmanfm-qt
-    lxmenu-data
-    menu-cache
-    lxqt.lximage-qt
-    lxqt.lxqt-archiver
-    lxqt.lxqt-sudo
-    libsForQt5.breeze-icons
-    networkmanagerapplet
-    feh
-
-    # Fonts for Starship/powerline themes
-    nerd-fonts.fira-code
-    nerd-fonts.jetbrains-mono
-    nerd-fonts.meslo-lg
+    lsof
   ];
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ZSH & STARSHIP
+  # ═══════════════════════════════════════════════════════════════════════════
+  programs.zsh.enable = true;
+  users.defaultUserShell = pkgs.zsh;
+
+  programs.starship = {
+    enable = true;
+  };
+
 
   # ═══════════════════════════════════════════════════════════════════════════
   # NIX SETTINGS
   # ═══════════════════════════════════════════════════════════════════════════
-  nixpkgs.config.allowUnfree = true;
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SSH SERVER - BULLETPROOF CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "no";
+      PasswordAuthentication = true;
+    };
   };
 
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
+  # Make SSH auto-restart if it crashes and wait for network
+  systemd.services.sshd = {
+    serviceConfig = {
+      Restart = "always";
+      RestartSec = "5s";
+    };
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
   };
 
-  nix.optimise.automatic = true;
-  nix.optimise.dates = [ "weekly" ];
-
-  # Auto-upgrade (currently disabled)
-  # system.autoUpgrade = {
-  #   enable = true;
-  #   allowReboot = false;
-  #   dates = "04:00";
-  #   flake = "github:ppb1701/nixos-config";
-  # };
 }
