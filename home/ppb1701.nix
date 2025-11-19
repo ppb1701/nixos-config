@@ -175,6 +175,8 @@
 ║   en         - Edit modules/networking.nix                 ║
 ║   es         - Edit modules/services.nix                   ║
 ║   esy        - Edit modules/system.nix                     ║
+║   ebios         - Edit modules/boot-bios.nix               ║
+║   euefi         - Edit modules/boot-uefi.nix               ║
 ║   ep         - Edit private/ssh-keys.nix                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║ GIT OPERATIONS:                                            ║
@@ -215,6 +217,8 @@
    ep = "sudo micro /etc/nixos/private/ssh-keys.nix";
    eu = "sudo micro /etc/nixos/configuration-uefi.nix";
    eb = "sudo micro /etc/nixos/configuration-bios.nix";
+   ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
+   euefi = "sudo micro /etc/nixos/modules/boot-uefi.nix";
 
    # Git operations
    gc = "cd /etc/nixos && sudo git add . && sudo git commit";

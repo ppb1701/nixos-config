@@ -58,7 +58,7 @@
     enable = true;
 
     allowedTCPPorts = [
-      22      # SSH
+      2212    # SSH
       53      # DNS (TCP) - AdGuard Home
       80      # HTTP - Nginx
       443     # HTTPS

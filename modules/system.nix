@@ -1,13 +1,7 @@
 { config, pkgs, ... }:
 
 {
-  # ═══════════════════════════════════════════════════════════════════════════
-  # BOOTLOADER
-  # ═══════════════════════════════════════════════════════════════════════════
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-
-  # ═══════════════════════════════════════════════════════════════════════════
+   # ═══════════════════════════════════════════════════════════════════════════
   # TIMEZONE & LOCALE
   # ═══════════════════════════════════════════════════════════════════════════
   time.timeZone = "America/New_York";
@@ -104,13 +98,26 @@
   # ═══════════════════════════════════════════════════════════════════════════
   # SSH SERVER - BULLETPROOF CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════
+ # SSH Configuration - PRODUCTION HARDENED
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = true;
+      PasswordAuthentication = false;        # ← Disable password auth
+      PermitRootLogin = "no";                # ← Disable root login entirely
+      PubkeyAuthentication = true;           # ← Enable SSH key auth
+      ChallengeResponseAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      X11Forwarding = false;                 # ← Disable X11 forwarding
+      AllowUsers = [ "ppb1701" ];            # ← Only allow specific user
     };
+    ports = [ 2212 ];  # Consider changing to non-standard port (e.g., 2222)
   };
+  services.fail2ban = {
+    enable = true;
+    maxretry = 3;
+    bantime = "1h";
+  };
+  
 
   # Make SSH auto-restart if it crashes and wait for network
   systemd.services.sshd = {

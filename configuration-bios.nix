@@ -1,56 +1,48 @@
-{ config, pkgs, modulesPath, ... }:
+{ config, pkgs, lib, ... }:
+# ⚠️⚠️⚠️ WARNING: CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST BOOT ⚠️⚠️⚠️
+# ⚠️⚠️⚠️ THIS IS A TEMPORARY PASSWORD FOR INITIAL VM SETUP ONLY ⚠️⚠️⚠️
+# ⚠️⚠️⚠️ RUN: passwd ppb1701  AFTER FIRST LOGIN ⚠️⚠️⚠️
 
+let
+  # Explicitly add modules directory to Nix store
+  modulesDir = builtins.path {
+    path = /etc/nixos/modules;
+    name = "nixos-modules";
+  };
+
+  # Explicitly add private directory to Nix store
+  privateDir = builtins.path {
+    path = /etc/nixos/private;
+    name = "nixos-private";
+  };
+in
 {
   imports = [
-    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
-    ./configuration.nix  # Your modular configuration entry point
+    ./hardware-configuration.nix
+    "${modulesDir}/networking.nix"
+    "${modulesDir}/services.nix"
+    "${modulesDir}/system.nix"
+    "${modulesDir}/boot-bios.nix"  # ← BIOS boot configuration
+    <home-manager/nixos>
   ];
 
-  # ISO image settings
-  isoImage = {
-    makeEfiBootable = false;
-    makeUsbBootable = true;
-    isoName = "nixos-adguard-bios.iso";
+  # ⚠️⚠️⚠️ WARNING: CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST BOOT ⚠️⚠️⚠️
+  # ⚠️⚠️⚠️ THIS IS A TEMPORARY PASSWORD FOR INITIAL VM SETUP ONLY ⚠️⚠️⚠️
+  # ⚠️⚠️⚠️ RUN: passwd ppb1701  AFTER FIRST LOGIN ⚠️⚠️⚠️
+  users.users.ppb1701 = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" ];
+    initialPassword = "nixos";
   };
 
-  # Override boot settings for BIOS/Legacy systems
-  boot.loader.systemd-boot.enable = false;  # Disable systemd-boot for BIOS
-  boot.loader.grub = {
-    enable = true;
-    device = "nodev";  # For ISO
-    efiSupport = false;
-  };
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HOME MANAGER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  home-manager.users.ppb1701 = import ./home/ppb1701.nix;
+  home-manager.backupFileExtension = "backup";
 
-  # Disable services that shouldn't run on the live ISO
-  services.adguardhome.enable = false;
-  services.syncthing.enable = false;
-
-  # Keep SSH enabled for remote installation
-  services.openssh.enable = true;
-  services.openssh.settings.PermitRootLogin = "yes";  # Allow root login on ISO
-
-  # Simplified networking for ISO (use DHCP instead of static)
-  networking.useDHCP = true;
-  networking.networkmanager.enable = false;  # Disable NetworkManager on ISO
-  networking.wireless.enable = false;
-
-  # Don't set a static IP on the ISO
-  networking.interfaces = {};
-
-  # Allow passwordless root on ISO for installation
-  users.users.root.initialPassword = "";
-
-  # Include useful tools for installation
-  environment.systemPackages = with pkgs; [
-    vim
-    wget
-    curl
-    git
-    htop
-    micro
-    parted
-    gptfdisk
-    dig
-    jq
-  ];
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEM VERSION
+  # ═══════════════════════════════════════════════════════════════════════════
+  system.stateVersion = "25.05";
 }

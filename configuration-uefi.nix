@@ -1,51 +1,48 @@
-{ config, pkgs, modulesPath, ... }:
+{ config, pkgs, lib, ... }:
+# ⚠️⚠️⚠️ WARNING: CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST BOOT ⚠️⚠️⚠️
+# ⚠️⚠️⚠️ THIS IS A TEMPORARY PASSWORD FOR INITIAL VM SETUP ONLY ⚠️⚠️⚠️
+# ⚠️⚠️⚠️ RUN: passwd ppb1701  AFTER FIRST LOGIN ⚠️⚠️⚠️
 
-{
-  imports = [
-    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
-    ./configuration.nix  # Your modular configuration entry point
-  ];
-
-  # ISO image settings
-  isoImage = {
-    makeEfiBootable = true;
-    makeUsbBootable = true;
-    isoName = "nixos-adguard-uefi.iso";
+let
+  # Explicitly add modules directory to Nix store
+  modulesDir = builtins.path {
+    path = /etc/nixos/modules;
+    name = "nixos-modules";
   };
 
-  # Override boot settings for ISO (systemd-boot is already set in your config)
-  # The ISO will use systemd-boot for UEFI systems
-
-  # Disable services that shouldn't run on the live ISO
-  services.adguardhome.enable = false;
-  services.syncthing.enable = false;
-
-  # Keep SSH enabled for remote installation
-  services.openssh.enable = true;
-  services.openssh.settings.PermitRootLogin = "yes";  # Allow root login on ISO
-
-  # Simplified networking for ISO (use DHCP instead of static)
-  networking.useDHCP = true;
-  networking.networkmanager.enable = false;  # Disable NetworkManager on ISO
-  networking.wireless.enable = false;
-
-  # Don't set a static IP on the ISO
-  networking.interfaces = {};
-
-  # Allow passwordless root on ISO for installation
-  users.users.root.initialPassword = "";
-
-  # Include useful tools for installation
-  environment.systemPackages = with pkgs; [
-    vim
-    wget
-    curl
-    git
-    htop
-    micro
-    parted
-    gptfdisk
-    dig
-    jq
+  # Explicitly add private directory to Nix store
+  privateDir = builtins.path {
+    path = /etc/nixos/private;
+    name = "nixos-private";
+  };
+in
+{
+  imports = [
+    ./hardware-configuration.nix
+    "${modulesDir}/networking.nix"
+    "${modulesDir}/services.nix"
+    "${modulesDir}/system.nix"
+    "${modulesDir}/boot-uefi.nix"  # ← UEFI boot configuration
+    <home-manager/nixos>
   ];
+
+  # ⚠️⚠️⚠️ WARNING: CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST BOOT ⚠️⚠️⚠️
+  # ⚠️⚠️⚠️ THIS IS A TEMPORARY PASSWORD FOR INITIAL VM SETUP ONLY ⚠️⚠️⚠️
+  # ⚠️⚠️⚠️ RUN: passwd ppb1701  AFTER FIRST LOGIN ⚠️⚠️⚠️
+  users.users.ppb1701 = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" ];
+    initialPassword = "nixos";
+  };
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HOME MANAGER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
+  home-manager.users.ppb1701 = import ./home/ppb1701.nix;
+  home-manager.backupFileExtension = "backup";
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYSTEM VERSION
+  # ═══════════════════════════════════════════════════════════════════════════
+  system.stateVersion = "25.05";
 }

@@ -19,6 +19,7 @@ in
     "${modulesDir}/networking.nix"
     "${modulesDir}/services.nix"
     "${modulesDir}/system.nix"
+    "${modulesDir}/boot-uefi.nix"
     <home-manager/nixos>
   ];
 
