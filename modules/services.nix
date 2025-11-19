@@ -59,6 +59,12 @@
     settings = import /etc/nixos/private/syncthing-secrets.nix;
   };
 
+  # Tailscale - Zero-config mesh VPN
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "server";  # Enable subnet routing if needed
+  };
+
   # ═══════════════════════════════════════════════════════════════════════════
   # NGINX - REVERSE PROXY FOR CLEAN LOCAL URLS
   # ═══════════════════════════════════════════════════════════════════════════
