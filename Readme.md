@@ -55,39 +55,66 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 ### Core Services
 
 - **AdGuard Home:** Network-wide ad blocking and DNS filtering
-  - 12+ curated filter lists
-  - Client identification via reverse DNS
-  - ASUS router integration
+  - Configurable upstream DNS (Control D, Quad9)
+  - DNSSEC enabled for security
+  - Web UI accessible via Nginx reverse proxy (http://adguard.home)
 - **Syncthing:** Cross-platform file synchronization
   - Works with Windows, macOS, Linux, Android
   - Private device configuration
   - Secure LAN-only sync
+  - Web UI accessible via Nginx reverse proxy (http://syncthing.home)
+- **Nginx:** Reverse proxy for clean local URLs
+  - Access services via friendly names (adguard.home, syncthing.home)
+  - No need to remember port numbers
+- **Tailscale:** Secure remote access VPN
+  - Access your server from anywhere
+  - Zero-config mesh networking
 - **SSH Access:** Secure remote management
-  - No exposed ports beyond LAN
   - Key-based authentication support
+  - Auto-restart on failure
 
-### Optional Services
+### Desktop Environment
 
-- **Monitoring:** System monitoring with Netdata (optional)
-- **Remote Access:** Tailscale VPN integration (optional)
+- **LXQT Desktop:** Lightweight desktop environment for VM/local access
+  - LightDM display manager with auto-login
+  - PipeWire audio support
+  - NetworkManager applet for easy network configuration
 
 ### Infrastructure Features
 
-- **Modular Configuration:** Services organized in separate modules
+- **Modular Configuration:** Services organized in logical modules
+  - `services.nix` - All service configurations
+  - `networking.nix` - Network and firewall settings
+  - `system.nix` - System packages, users, desktop
+  - `boot-bios.nix` / `boot-uefi.nix` - Boot configurations
 - **Private Configuration:** Sensitive data kept out of Git
+  - `syncthing-secrets.nix` - Syncthing GUI password and device config
+  - `ssh-keys.nix` - SSH authorized keys
+- **Home Manager:** User environment management
+  - Custom ZSH configuration with starship prompt
+  - Extensive shell aliases for system management
 - **Custom ISO Builder:** Bootable installation images
-- **Automated Installation:** Zero-touch deployment script
-
-### Infrastructure
-
-- **Custom ISO:** Bootable installation image with configuration baked in
-- **Automated Install:** Zero-touch deployment script
-- **GitHub Integration:** Configuration managed via Git
-- **Modular Design:** Easy to add/remove services
+- **Automated Installation:** Zero-touch deployment script with BIOS/UEFI selection
 
 ## Quick Start
 
-### Option 1: Custom ISO (Recommended)
+### Option 1: Pre-built ISO (Easiest)
+
+**Download the latest ISO:**
+
+https://github.com/ppb1701/nixos-config/releases/tag/nixos
+
+**Install:**
+
+1. Download the ISO from the releases page
+2. Flash ISO to USB drive (Rufus on Windows, `dd` on Linux/Mac, or Ventoy)
+3. Boot target machine from USB
+4. Run: `sudo /etc/nixos-config/install-nixos.sh`
+5. Choose UEFI or BIOS boot mode
+6. Follow prompts
+7. Reboot into your configured system!
+
+### Option 2: Build Your Own ISO
 
 **Build the ISO:**
 
@@ -105,7 +132,7 @@ cd nixos-config
 4. Follow prompts
 5. Reboot into your configured system!
 
-### Option 2: Manual Installation
+### Option 3: Manual Installation
 
 On an existing NixOS system:
 
@@ -179,45 +206,41 @@ nixos-generate-config --show-hardware-config
 
 **Setup:**
 
-1. Copy the example template:
+1. Create your private configuration:
    ```bash
-   cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+   sudo micro /etc/nixos/private/syncthing-secrets.nix
    ```
 
-2. Set your GUI password in `private/syncthing-devices.nix`:
+2. Add your GUI password and device configuration:
    ```nix
-   services.syncthing.settings = {
+   {
      gui = {
        user = "ppb1701";
        password = "your-strong-password-here";
      };
-   };
-   ```
 
-3. Get device IDs from each device:
-   - Install Syncthing
-   - Open web UI: http://localhost:8384
-   - Actions → Show ID
-   - Copy the device ID
-
-4. Edit `private/syncthing-devices.nix`:
-   ```nix
-   services.syncthing.settings = {
      devices = {
        "my-laptop" = {
-         id = "ABCDEFG-1234567-...";
+         id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
        };
      };
+
      folders = {
        "Documents" = {
          path = "/home/ppb1701/Documents";
          devices = [ "my-laptop" ];
        };
      };
-   };
+   }
    ```
-   - Paste your device ID where it says `ABCDEFG-1234567-...`
-   - Add more devices and folders as needed
+
+3. Get device IDs from each device:
+   - Install Syncthing on the device
+   - Open web UI: http://localhost:8384
+   - Go to Actions → Show ID
+   - Copy the full device ID
+
+4. Add more devices and folders as needed to `syncthing-secrets.nix`
 
 5. Rebuild:
    ```bash
@@ -225,9 +248,10 @@ nixos-generate-config --show-hardware-config
    ```
 
 6. Access Syncthing web UI:
-   - **URL:** http://192.168.1.154:8384
+   - **Via Nginx:** http://syncthing.home (requires adding to /etc/hosts or router DNS)
+   - **Direct access:** http://192.168.1.154:8384
    - **Username:** ppb1701
-   - **Password:** (what you set in syncthing-devices.nix)
+   - **Password:** (what you set in syncthing-secrets.nix)
 
 > **Note:** The `private/` directory is gitignored to protect your device IDs and password.
 
@@ -243,18 +267,21 @@ See `docs/` directory for guides on:
 
 ### Cleaning Up Old Generations
 
-Over time, NixOS accumulates old system generations that consume disk space. Use the cleanup script to recover space:
+Over time, NixOS accumulates old system generations that consume disk space. Use these commands or the convenient shell alias to recover space:
 
 ```bash
-sudo ./cleanup-nixos.sh
+# Using shell alias (easiest)
+cleanup
+
+# Or manually
+sudo nix-collect-garbage -d
+sudo nix-store --optimize
 ```
 
 **What it does:**
-- Removes system generations older than 7 days
-- Runs full garbage collection on unreachable store paths
-- Optimizes the Nix store (hard-links identical files to save space)
-- Cleans temporary files from `/tmp`
-- Removes build result symlinks
+- `cleanup` alias removes all old generations and optimizes the store
+- `nix-collect-garbage -d` removes all unreachable store paths
+- `nix-store --optimize` hard-links identical files to save space
 
 **When to run:**
 - Monthly as routine maintenance
@@ -265,42 +292,50 @@ sudo ./cleanup-nixos.sh
 **Expected results:**
 - Can free 5-20GB depending on how many old generations exist
 - Store optimization typically saves 10-30% through hard-linking
-- You'll see before/after disk usage statistics
 
-> **Tip:** Keep at least one or two recent generations in case you need to rollback. The script keeps the last 7 days by default.
+**Other useful aliases:**
+- `optimize` - Just run store optimization
+- `diskspace` - Check current disk usage (df -h)
+
+> **Tip:** Keep at least one or two recent generations in case you need to rollback. You can rollback with the `rollback` alias.
 
 ## Repository Structure
 
 ```
 nixos-config/
-├── configuration.nix              # Main system configuration
+├── configuration.nix              # Main system configuration (BIOS boot)
+├── configuration-bios.nix         # BIOS/Legacy boot variant
 ├── configuration-uefi.nix         # UEFI boot variant
 ├── hardware-configuration.nix     # Hardware-specific settings (auto-generated)
 ├── build-iso.sh                   # ISO build script
 ├── install-nixos.sh               # Automated installation script
-├── cleanup-nixos.sh               # System maintenance and cleanup script
+├── setup.config.sh                # Configuration extraction script
 ├── modules/                       # Service modules
-│   ├── adguard-home.nix          # AdGuard Home DNS filtering
+│   ├── services.nix              # All services (AdGuard, Syncthing, Tailscale, Nginx)
 │   ├── networking.nix            # Network & firewall configuration
-│   ├── syncthing.nix             # File synchronization
-│   └── archived_rustdesk.nix     # RustDesk (disabled due to build issues)
+│   ├── system.nix                # System packages, users, desktop, SSH
+│   ├── boot-bios.nix             # BIOS/GRUB boot configuration
+│   └── boot-uefi.nix             # UEFI/systemd-boot configuration
 ├── home/                          # Home Manager configurations
-│   └── ppb1701.nix               # User environment config
+│   └── ppb1701.nix               # User environment (ZSH, Starship, aliases)
 ├── private/                       # Private config (gitignored)
-│   ├── syncthing-devices.nix.example     # Device ID template
-└── README.md                     # This file
+│   ├── syncthing-secrets.nix     # Syncthing settings and device IDs
+│   ├── syncthing-devices.nix     # Symlink to syncthing-secrets.nix
+│   └── ssh-keys.nix              # SSH authorized keys
 ├── docs/                          # Documentation
 │   ├── CUSTOMIZATION.md          # How to customize services
 │   ├── SERVICES.md               # Additional services guide
 │   ├── TROUBLESHOOTING.md        # Common issues & solutions
 │   └── BUILDING-PUBLIC-ISOS.md   # ISO building guide
-├── iso-config.nix                # Custom ISO configuration
-├── build-iso.sh                  # ISO build script
-├── install-nixos.sh              # Automated installation script
-└── README.md                     # This file
+├── iso-config.nix                 # Custom ISO configuration
+└── README.md                      # This file
 ```
 
 ## Building a Custom ISO
+
+> **Note:** A pre-built ISO is available at https://github.com/ppb1701/nixos-config/releases/tag/nixos
+>
+> Only build your own ISO if you need to customize the configuration before installation.
 
 ### Prerequisites
 
@@ -387,21 +422,38 @@ Sensitive configuration is stored in the `private/` directory, which is gitignor
 
 ```
 private/
-├── syncthing-devices.nix          # Your actual devices (gitignored)
-├── syncthing-devices.nix.example  # Template (committed)
+├── syncthing-secrets.nix          # Syncthing GUI password and device IDs (gitignored)
+├── syncthing-devices.nix          # Symlink to syncthing-secrets.nix (gitignored)
+├── ssh-keys.nix                   # SSH authorized keys (gitignored)
 ```
 
 **What's kept private:**
 
-- Syncthing device IDs
-- Syncthing GUI password (in syncthing-devices.nix)
+- Syncthing device IDs and GUI password (syncthing-secrets.nix)
+- SSH authorized keys (ssh-keys.nix)
 - Any other sensitive credentials
 
 **What's public:**
 
 - Username (ppb1701) - already public on GitHub, Mastodon, etc.
 - Configuration structure
-- Example templates
+- System architecture and design
+
+**Setting up private files:**
+
+```bash
+# Create syncthing-secrets.nix
+sudo micro /etc/nixos/private/syncthing-secrets.nix
+
+# Create ssh-keys.nix (list of SSH public keys)
+sudo micro /etc/nixos/private/ssh-keys.nix
+
+# Example ssh-keys.nix content:
+[
+  "ssh-ed25519 AAAAC3... user@hostname"
+  "ssh-rsa AAAAB3... user@another-host"
+]
+```
 
 ### Building Public ISOs
 
@@ -415,55 +467,67 @@ See `docs/building-public-isos.md` for details.
 
 ## Customization
 
-### Adding Filter Lists
+### Convenient Shell Aliases
 
-Edit `modules/adguard-home.nix`:
+The system includes extensive shell aliases for quick configuration editing. Run `help` to see all available aliases:
 
-```nix
-filters = [
-  {
-    enabled = true;
-    url = "https://example.com/your-list.txt";
-    name = "Your Custom List";
-    id = 13;
-  }
-];
+```bash
+# Edit configurations quickly
+ec      # Edit configuration.nix
+es      # Edit modules/services.nix (AdGuard, Syncthing, etc.)
+en      # Edit modules/networking.nix
+esy     # Edit modules/system.nix
+eh      # Edit home/ppb1701.nix
+eb/eu   # Edit BIOS/UEFI configuration
+
+# System management
+rebuild # Rebuild and switch to new config (auto-reloads shell)
+test    # Test new config without switching
+rollback# Rollback to previous generation
+update  # Update system and rebuild
+
+# Service management
+ags/agr/agl # AdGuard status/restart/logs
+sts/str/stl # Syncthing status/restart/logs
 ```
 
-- Increment the `id` from the last filter in the list
+### Adding Services to modules/services.nix
 
-### Adding Services
+Edit `modules/services.nix` to add or configure services:
 
-1. Create a new module in `modules/`:
+```bash
+# Quick edit with alias
+es
 
-   ```nix
-   # modules/your-service.nix
-   { config, pkgs, ... }:
-   
-   {
-     services.your-service = {
-       enable = true;
-     };
-   }
-   ```
+# Or manually
+sudo micro /etc/nixos/modules/services.nix
+```
 
-2. Import in `configuration.nix`:
+Example - Add a new service section:
 
-   ```nix
-   imports = [
-     ./modules/adguard-home.nix
-     ./modules/your-service.nix
-   ];
-   ```
+```nix
+# ═══════════════════════════════════════════════════════════════════════════
+# YOUR NEW SERVICE
+# ═══════════════════════════════════════════════════════════════════════════
+services.your-service = {
+  enable = true;
+  # Service-specific options
+};
+```
+
+Then rebuild: `rebuild` (or `sudo nixos-rebuild switch`)
 
 ### Modifying Network Settings
 
-See `modules/networking.nix` for:
+Edit `modules/networking.nix` for:
 
 - Static IP configuration
 - Interface selection
-- DNS settings
+- DNS settings (currently using Control D: 76.76.2.2, 76.76.10.2)
 - Firewall rules
+- NetworkManager configuration
+
+Quick edit: `en` or `sudo micro /etc/nixos/modules/networking.nix`
 
 ### Automatic Generations Cleaning
 
@@ -523,22 +587,34 @@ sudo nix-store --optimise
 **AdGuard Home web UI not accessible:**
 
 - Check firewall: `sudo iptables -L`
-- Verify service: `systemctl status adguardhome`
+- Verify service: `ags` (or `systemctl status adguardhome`)
 - Check binding: `ss -tlnp | grep 3000`
+- View logs: `agl` (or `journalctl -u adguardhome -f`)
+- Try accessing via Nginx: http://adguard.home
 
 **Syncthing not syncing:**
 
-- Check web UI: http://192.168.1.154:8384
-- Verify device IDs are correct
-- Check firewall ports (22000, 21027)
+- Check web UI: http://syncthing.home or http://192.168.1.154:8384
+- Verify device IDs in `/etc/nixos/private/syncthing-secrets.nix`
+- Check service status: `sts` (or `systemctl status syncthing`)
+- View logs: `stl` (or `journalctl -u syncthing -f`)
+- Verify firewall ports (22000, 21027, 8384)
+
+**Network issues after config changes:**
+
+- Check NetworkManager status: `systemctl status NetworkManager`
+- Verify interface name in `modules/networking.nix` (currently enp1s0)
+- Check DNS settings: `cat /etc/resolv.conf`
+- Test connectivity: `ping 1.1.1.1`
 
 **ISO build fails:**
 
-- Ensure sufficient disk space (20GB+)
+- Ensure sufficient disk space (20GB+): `diskspace` or `df -h`
+- Clean old generations: `cleanup`
 - Check Nix store: `nix-store --verify --check-contents`
 - Try clean build: `rm -rf result && ./build-iso.sh`
 
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more detailed solutions.
 
 ## Reporting Issues
 

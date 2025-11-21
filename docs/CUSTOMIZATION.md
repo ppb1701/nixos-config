@@ -2,6 +2,22 @@
 
 This guide shows you how to customize your NixOS AdGuard Home server to fit your specific needs.
 
+## Quick Configuration Editing
+
+The system includes convenient shell aliases for quick editing. Type `help` for a full list:
+
+```bash
+# Edit service configurations
+es      # Edit modules/services.nix (AdGuard, Syncthing, Tailscale, Nginx)
+en      # Edit modules/networking.nix (network, firewall, DNS)
+esy     # Edit modules/system.nix (packages, users, desktop)
+eh      # Edit home/ppb1701.nix (shell, aliases, prompt)
+ec      # Edit main configuration.nix
+
+# Quick rebuild
+rebuild # Rebuild and switch (auto-reloads shell)
+```
+
 ## Adding Filter Lists
 
 ### Finding Filter Lists
@@ -14,24 +30,15 @@ Good sources for filter lists:
 
 ### Adding a New Filter List
 
-Edit `modules/adguard-home.nix`:
+AdGuard Home filter lists are configured in the web UI, not in configuration files:
 
-```nix
-filters = [
-  # Existing filters...
-  {
-    enabled = true;
-    url = "https://example.com/your-custom-list.txt";
-    name = "Your Custom List Name";
-    id = 13;  # Increment from last ID
-  }
-];
-```
+1. Access AdGuard Home web UI: http://adguard.home (or http://192.168.1.154:3000)
+2. Go to Settings → DNS settings → DNS blocklists
+3. Click "Add blocklist"
+4. Enter URL and name
+5. Click "Add"
 
-**Important:**
-- Each filter must have a unique `id`
-- Use the next available number
-- Keep IDs sequential for organization
+The configuration in `modules/services.nix` only sets basic AdGuard Home settings. Filter lists are managed through the web UI and stored in AdGuard's data directory
 
 ### Creating Your Own Filter List
 
@@ -63,27 +70,29 @@ Set `enabled = false`:
 
 ### Adding User Rules
 
-Edit `modules/adguard-home.nix`:
+Custom filtering rules are added through the AdGuard Home web UI:
 
-```nix
-filtering = {
-  user_rules = [
-    # Block specific domain
-    "||ads.example.com^"
+1. Access http://adguard.home (or http://192.168.1.154:3000)
+2. Go to Settings → DNS settings → DNS blocklists
+3. Scroll to "Custom filtering rules"
+4. Add your rules
 
-    # Allow specific domain (whitelist)
-    "@@||allowed.example.com^"
+**Rule examples:**
+```
+# Block specific domain
+||ads.example.com^
 
-    # Block subdomain
-    "||*.tracking.example.com^"
+# Allow specific domain (whitelist)
+@@||allowed.example.com^
 
-    # Block with wildcard
-    "||*-ads.example.com^"
+# Block subdomain
+||*.tracking.example.com^
 
-    # CSS rule (hide element)
-    "example.com##.advertisement"
-  ];
-};
+# Block with wildcard
+||*-ads.example.com^
+
+# CSS rule (hide element)
+example.com##.advertisement
 ```
 
 ### Rule Syntax
@@ -360,104 +369,102 @@ home.packages = with pkgs; [
 
 ## AdGuard Home Customization
 
-### Changing Web UI Port
+AdGuard Home configuration is split between NixOS configuration and the web UI:
 
-Edit `modules/adguard-home.nix`:
+### Basic Settings (in modules/services.nix)
+
+Edit with: `es` or `sudo micro /etc/nixos/modules/services.nix`
 
 ```nix
-http = {
-  address = "0.0.0.0:8080";  # Change from 3000
+services.adguardhome = {
+  enable = true;
+  mutableSettings = true;  # Allow web UI changes
+  host = "0.0.0.0";        # Listen on all interfaces
+  port = 3000;             # Web UI port
+
+  settings = {
+    dns = {
+      bind_hosts = [ "0.0.0.0" ];
+      port = 53;
+
+      # Upstream DNS servers (Control D + Quad9)
+      upstream_dns = [
+        "76.76.2.2"         # Control D
+        "76.76.10.2"        # Control D
+        "9.9.9.9"           # Quad9
+        "149.112.112.112"   # Quad9
+      ];
+
+      bootstrap_dns = [
+        "9.9.9.9"
+        "149.112.112.112"
+      ];
+
+      enable_dnssec = true;
+    };
+  };
 };
 ```
 
-**Update firewall:**
+**After changes:** Run `rebuild` to apply
 
-```nix
-networking.firewall.allowedTCPPorts = [ 8080 ];
-```
+### Changing Ports
 
-### Changing DNS Port
+**Web UI port:**
+- Edit `port = 3000;` in `modules/services.nix`
+- Update Nginx reverse proxy in same file
+- Update firewall in `modules/networking.nix`
+- Rebuild: `rebuild`
 
-```nix
-dns = {
-  bind_hosts = [ "0.0.0.0" ];
-  port = 5353;  # Change from 53
-};
-```
+**DNS port:**
+- Edit `port = 53;` in the `dns` section
+- Update firewall UDP port
+- Note: Non-standard DNS ports require client configuration
 
-> **Note:** Non-standard DNS ports require client configuration.
+### Advanced Settings (in Web UI)
 
-### Custom Upstream DNS
+Most AdGuard Home settings are best configured through the web UI:
 
-```nix
-dns = {
-  upstream_dns = [
-    "https://dns.quad9.net/dns-query"
-    "https://cloudflare-dns.com/dns-query"
-    "tls://1.1.1.1"
-  ];
-  bootstrap_dns = [
-    "9.9.9.9"
-    "1.1.1.1"
-  ];
-};
-```
+- Filter lists and custom rules
+- DNS cache settings
+- Query logging preferences
+- Client settings
+- DHCP server (if needed)
+- Parental controls
 
-### DNS Cache Settings
-
-```nix
-dns = {
-  cache_size = 10000000;  # 10MB cache
-  cache_ttl_min = 60;     # Minimum 60 seconds
-  cache_ttl_max = 86400;  # Maximum 24 hours
-};
-```
-
-### Query Logging
-
-```nix
-querylog = {
-  enabled = true;
-  interval = "2160h";  # 90 days
-  size_memory = 1000;
-  ignored = [
-    "||example.com^"  # Don't log queries to example.com
-  ];
-};
-```
+Access: http://adguard.home or http://192.168.1.154:3000
 
 ## Adding Services
 
+Services are now consolidated in `modules/services.nix`. To add a new service, edit this file and add your service configuration.
+
 ### Syncthing Configuration
 
-Syncthing is configured using a combination of the main module (`modules/syncthing.nix`) and private configuration files for device-specific settings.
+Syncthing is configured in `modules/services.nix` with private settings in `private/syncthing-secrets.nix`.
 
 #### Initial Setup
 
-1. **Create private configuration files:**
+1. **Create private configuration file:**
 
    ```bash
-   cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+   sudo micro /etc/nixos/private/syncthing-secrets.nix
    ```
 
-2. **Set your GUI password** in `private/syncthing-devices.nix`:
+2. **Add your settings** to `syncthing-secrets.nix`:
 
-   Add to the settings section:
    ```nix
    {
-     services.syncthing.settings = {
-       gui = {
-         user = "ppb1701";
-         password = "your-secure-password-here";
-       };
-       
-       devices = {
-         # Your devices here...
-       };
-       
-       folders = {
-         # Your folders here...
-       };
+     gui = {
+       user = "ppb1701";
+       password = "your-secure-password-here";
+     };
+
+     devices = {
+       # Your devices here...
+     };
+
+     folders = {
+       # Your folders here...
      };
    }
    ```
@@ -468,7 +475,7 @@ Syncthing is configured using a combination of the main module (`modules/syncthi
    - Go to Actions → Show ID
    - Copy the device ID (format: `ABCDEFG-HIJKLMN-...`)
 
-4. **Configure devices and folders** in `private/syncthing-devices.nix`:
+4. **Configure devices and folders** in `private/syncthing-secrets.nix`:
 
    ```nix
    {
@@ -514,12 +521,12 @@ Syncthing is configured using a combination of the main module (`modules/syncthi
 
 #### Adding More Devices
 
-Edit `private/syncthing-devices.nix` and add to the `devices` section:
+Edit `private/syncthing-secrets.nix` and add to the `devices` section:
 
 ```nix
 devices = {
   "existing-device" = {
-    id = "...";
+    id = "ABCDEFG-HIJKLMN-...";
   };
   "new-device" = {
     id = "NEWDEVIC-EIDHERE-...";
@@ -537,6 +544,8 @@ folders = {
   };
 };
 ```
+
+**After changes:** Run `rebuild` to apply
 
 #### Syncthing Settings
 
@@ -598,7 +607,7 @@ settings.options = {
 
 **Devices not discovering each other:**
 
-1. Manually add device addresses in `private/syncthing-devices.nix`:
+1. Manually add device addresses in `private/syncthing-secrets.nix`:
 
    ```nix
    devices = {
@@ -612,89 +621,109 @@ settings.options = {
 2. Check firewall allows Syncthing ports:
 
    ```bash
-   ss -tlnp | grep 22000  # Sync port
+   ss -tlnp | grep 22000  # Sync port (use sts alias)
    ss -tlnp | grep 8384   # Web UI port
    ```
 
 3. Verify Syncthing is running:
 
    ```bash
+   sts   # Status alias
+   stl   # Logs alias
+   # Or manually:
    systemctl status syncthing
    journalctl -u syncthing -f
    ```
 
 **Files not syncing:**
 
-- Check folder status in web UI
+- Check folder status in web UI: http://syncthing.home
 - Verify folder paths exist and are writable
-- Check disk space
+- Check disk space: `diskspace` alias
 - Review ignore patterns
 
-### Creating a New Service Module
+### Adding a New Service
 
-**Create `modules/your-service.nix`:**
+Services are consolidated in `modules/services.nix`. To add a new service:
+
+1. **Edit services module:**
+   ```bash
+   es  # Quick edit alias
+   # Or: sudo micro /etc/nixos/modules/services.nix
+   ```
+
+2. **Add service configuration:**
+   ```nix
+   # ═══════════════════════════════════════════════════════════════════════════
+   # YOUR NEW SERVICE
+   # ═══════════════════════════════════════════════════════════════════════════
+   services.your-service = {
+     enable = true;
+     port = 8080;
+     # Service-specific options
+   };
+   ```
+
+3. **Update firewall (if needed):**
+   ```bash
+   en  # Edit networking.nix
+   ```
+
+   Add to `allowedTCPPorts` or `allowedUDPPorts`:
+   ```nix
+   networking.firewall.allowedTCPPorts = [
+     # ... existing ports ...
+     8080  # Your new service
+   ];
+   ```
+
+4. **Rebuild:**
+   ```bash
+   rebuild  # Applies changes and reloads shell
+   ```
+
+**For complex services**, you can still create a separate module file and import it in `configuration.nix`
+
+### Example: Adding Netdata to modules/services.nix
+
+**Edit:** `es` or `sudo micro /etc/nixos/modules/services.nix`
+
+**Add to the file:**
 
 ```nix
-{ config, pkgs, ... }:
-
-{
-  services.your-service = {
-    enable = true;
-    port = 8080;
-    # Service-specific options
-  };
-
-  networking.firewall.allowedTCPPorts = [ 8080 ];
-}
-```
-
-**Import in `configuration.nix`:**
-
-```nix
-imports = [
-  ./modules/adguard-home.nix
-  ./modules/your-service.nix
-];
-```
-
-### Example: Adding Netdata
-
-**Create `modules/netdata.nix`:**
-
-```nix
-{ config, pkgs, ... }:
-
-{
-  services.netdata = {
-    enable = true;
-    config = {
-      global = {
-        "default port" = "19999";
-        "bind to" = "*";
-      };
+# ═══════════════════════════════════════════════════════════════════════════
+# NETDATA - SYSTEM MONITORING
+# ═══════════════════════════════════════════════════════════════════════════
+services.netdata = {
+  enable = true;
+  config = {
+    global = {
+      "default port" = "19999";
+      "bind to" = "*";
     };
   };
-
-  networking.firewall.allowedTCPPorts = [ 19999 ];
-}
+};
 ```
 
-### Example: Adding Tailscale
+**Update firewall:** `en` or `sudo micro /etc/nixos/modules/networking.nix`
 
-**Create `modules/tailscale.nix`:**
+Add `19999` to `allowedTCPPorts`, then `rebuild`
+
+### Tailscale (Already Included!)
+
+Tailscale is already configured in `modules/services.nix`:
 
 ```nix
-{ config, pkgs, ... }:
-
-{
-  services.tailscale.enable = true;
-
-  networking.firewall = {
-    checkReversePath = "loose";
-    trustedInterfaces = [ "tailscale0" ];
-  };
-}
+# ═══════════════════════════════════════════════════════════════════════════
+# TAILSCALE - SECURE REMOTE ACCESS
+# ═══════════════════════════════════════════════════════════════════════════
+services.tailscale = {
+  enable = true;
+  useRoutingFeatures = "client";
+};
 ```
+
+To activate: `sudo tailscale up` (after rebuild)
 
 ## Boot Configuration
 

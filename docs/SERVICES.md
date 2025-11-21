@@ -1,6 +1,17 @@
 # Additional Services Guide
 
-This guide covers optional services you can add to your NixOS AdGuard Home server.
+This guide covers services in your NixOS configuration and how to add more.
+
+## Currently Included Services
+
+Your configuration already includes these services (configured in `modules/services.nix`):
+
+- **AdGuard Home** - DNS filtering and ad blocking (port 53, web UI port 3000)
+- **Syncthing** - File synchronization (ports 22000, 21027, 8384)
+- **Tailscale** - VPN for secure remote access
+- **Nginx** - Reverse proxy for clean local URLs (ports 80, 443)
+
+Plus desktop environment (LXQT), SSH server, and system utilities.
 
 ## File Synchronization
 
@@ -8,7 +19,7 @@ This guide covers optional services you can add to your NixOS AdGuard Home serve
 
 Syncthing provides continuous file synchronization across multiple devices. It works on Windows, macOS, Linux, Android, and more.
 
-**Already Included:** Syncthing is already configured in `modules/syncthing.nix` but requires device-specific configuration.
+**Already Included:** Syncthing is configured in `modules/services.nix` but requires device-specific configuration in `private/syncthing-secrets.nix`.
 
 #### Why Syncthing?
 
@@ -21,32 +32,28 @@ Syncthing provides continuous file synchronization across multiple devices. It w
 
 #### Complete Setup Guide
 
-**1. Configure Private Settings**
+**1. Create Private Configuration**
 
 ```bash
-# Copy example template
-cp private/syncthing-devices.nix.example private/syncthing-devices.nix
+# Create the private secrets file
+sudo micro /etc/nixos/private/syncthing-secrets.nix
 ```
 
-**2. Set GUI Password**
-
-Edit `private/syncthing-devices.nix` and add the GUI password to the settings:
+**2. Add Settings to syncthing-secrets.nix**
 
 ```nix
 {
-  services.syncthing.settings = {
-    gui = {
-      user = "ppb1701";
-      password = "your-strong-password-here";
-    };
-    
-    devices = {
-      # Your devices will go here
-    };
-    
-    folders = {
-      # Your folders will go here
-    };
+  gui = {
+    user = "ppb1701";
+    password = "your-strong-password-here";
+  };
+
+  devices = {
+    # Your devices will go here
+  };
+
+  folders = {
+    # Your folders will go here
   };
 }
 ```
@@ -67,46 +74,49 @@ After installation:
 
 **4. Configure Devices and Folders**
 
-Edit `private/syncthing-devices.nix`:
+Continue editing `private/syncthing-secrets.nix`:
 
 ```nix
 {
-  services.syncthing.settings = {
-    devices = {
-      "windows-desktop" = {
-        id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
-      };
-      "macbook-pro" = {
-        id = "BCDEFGH-IJKLMNO-PQRSTUV-WXYZABC-DEFGHIJ-KLMNOPQ-RSTUVWX-YZABCDE";
-      };
-      "android-phone" = {
-        id = "CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD-EFGHIJK-LMNOPQR-STUVWXY-ZABCDEF";
+  gui = {
+    user = "ppb1701";
+    password = "your-strong-password-here";
+  };
+
+  devices = {
+    "windows-desktop" = {
+      id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
+    };
+    "macbook-pro" = {
+      id = "BCDEFGH-IJKLMNO-PQRSTUV-WXYZABC-DEFGHIJ-KLMNOPQ-RSTUVWX-YZABCDE";
+    };
+    "android-phone" = {
+      id = "CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD-EFGHIJK-LMNOPQR-STUVWXY-ZABCDEF";
+    };
+  };
+
+  folders = {
+    "Documents" = {
+      path = "/home/ppb1701/Documents";
+      devices = [ "windows-desktop" "macbook-pro" ];
+      versioning = {
+        type = "simple";
+        params.keep = "5";
       };
     };
-
-    folders = {
-      "Documents" = {
-        path = "/home/ppb1701/Documents";
-        devices = [ "windows-desktop" "macbook-pro" ];
-        versioning = {
-          type = "simple";
-          params.keep = "5";
-        };
-      };
-      "Photos" = {
-        path = "/home/ppb1701/Pictures";
-        devices = [ "android-phone" "macbook-pro" ];
-        ignorePerms = false;
-      };
-      "Projects" = {
-        path = "/home/ppb1701/Projects";
-        devices = [ "windows-desktop" "macbook-pro" ];
-        versioning = {
-          type = "staggered";
-          params = {
-            maxAge = "365";
-            cleanInterval = "3600";
-          };
+    "Photos" = {
+      path = "/home/ppb1701/Pictures";
+      devices = [ "android-phone" "macbook-pro" ];
+      ignorePerms = false;
+    };
+    "Projects" = {
+      path = "/home/ppb1701/Projects";
+      devices = [ "windows-desktop" "macbook-pro" ];
+      versioning = {
+        type = "staggered";
+        params = {
+          maxAge = "365";
+          cleanInterval = "3600";
         };
       };
     };
@@ -117,7 +127,8 @@ Edit `private/syncthing-devices.nix`:
 **5. Rebuild System**
 
 ```bash
-sudo nixos-rebuild switch
+rebuild  # Use alias for quick rebuild
+# Or: sudo nixos-rebuild switch
 ```
 
 **6. Complete Connection on Other Devices**
@@ -132,7 +143,7 @@ On each device:
 3. Accept the folder share request when it appears
 
 **Important:** On the NixOS server, you need to **accept the device connection**:
-- Open `http://192.168.1.154:8384`
+- Open http://syncthing.home (or http://192.168.1.154:8384)
 - A notification will appear asking to add the new device
 - Click "Add Device"
 - Confirm
@@ -142,13 +153,14 @@ On each device:
 - Check web UI for sync status
 - Create test file on one device
 - Verify it appears on other devices
-- Check Syncthing logs: `journalctl -u syncthing -f`
+- Check Syncthing logs: `stl` (or `journalctl -u syncthing -f`)
 
 #### Accessing Syncthing Web UI
 
 **On the server (NixOS):**
 ```
-http://192.168.1.154:8384
+Via Nginx: http://syncthing.home (requires DNS entry)
+Direct: http://192.168.1.154:8384
 Username: ppb1701
 Password: (from syncthing-secrets.nix)
 ```
@@ -500,48 +512,70 @@ Service uptime monitoring with status page.
 
 ## Remote Access
 
-### Tailscale
+### Tailscale (Already Included!)
 
-Zero-config VPN mesh network.
+Zero-config VPN mesh network is already configured in your system!
 
-**Create `modules/tailscale.nix`:**
+**Configured in `modules/services.nix`:**
 
 ```nix
-{ config, pkgs, ... }:
+# ═══════════════════════════════════════════════════════════════════════════
+# TAILSCALE - SECURE REMOTE ACCESS
+# ═══════════════════════════════════════════════════════════════════════════
+services.tailscale = {
+  enable = true;
+  useRoutingFeatures = "client";
+};
 
-{
-  services.tailscale.enable = true;
-
-  networking.firewall = {
-    checkReversePath = "loose";
-    trustedInterfaces = [ "tailscale0" ];
-    allowedUDPPorts = [ config.services.tailscale.port ];
-  };
-}
+networking.firewall = {
+  checkReversePath = "loose";
+  trustedInterfaces = [ "tailscale0" ];
+};
 ```
 
-**Setup:**
+**Setup (first time only):**
 
 ```bash
-# After rebuild
+# After first boot or rebuild
 sudo tailscale up
 
-# Follow authentication link
+# Follow authentication link in your browser
 # Your server is now accessible via Tailscale!
+
+# Get your Tailscale hostname
+tailscale status
 ```
 
-**Access services:**
+**Access services via Tailscale:**
 
-- AdGuard Home: http://tailscale-hostname:3000
-- SSH: `ssh youruser@tailscale-hostname`
+- AdGuard Home: http://[tailscale-hostname]:3000 or http://adguard.home
+- Syncthing: http://[tailscale-hostname]:8384 or http://syncthing.home
+- SSH: `ssh ppb1701@[tailscale-hostname]`
 
 **Features:**
 
-- Access from anywhere
+- Access from anywhere securely
 - No port forwarding needed
-- Encrypted connections
-- Works behind NAT
-- Free for personal use
+- End-to-end encrypted connections
+- Works behind NAT/firewall
+- Free for personal use (up to 100 devices)
+- Mobile apps available (iOS, Android)
+
+**Managing Tailscale:**
+
+```bash
+# Check connection status
+tailscale status
+
+# See your IP addresses
+tailscale ip
+
+# Logout
+sudo tailscale logout
+
+# Reconnect
+sudo tailscale up
+```
 
 ### WireGuard
 
@@ -887,60 +921,76 @@ Your own GitHub.
 
 ## Reverse Proxy
 
-### Nginx
+### Nginx (Already Included!)
 
-Serve multiple services on port 80/443 with friendly URLs.
+Nginx is already configured to provide clean local URLs for your services!
 
-**Create `modules/nginx.nix`:**
+**Configured in `modules/services.nix`:**
 
 ```nix
-{ config, pkgs, ... }:
+# ═══════════════════════════════════════════════════════════════════════════
+# NGINX - REVERSE PROXY FOR CLEAN LOCAL URLS
+# ═══════════════════════════════════════════════════════════════════════════
+services.nginx = {
+  enable = true;
 
-{
-  services.nginx = {
-    enable = true;
+  recommendedProxySettings = true;
+  recommendedTlsSettings = true;
 
-    virtualHosts = {
-      "adguard.home.lan" = {
-        locations."/" = {
-          proxyPass = "http://localhost:3000";
-          proxyWebsockets = true;
-        };
+  virtualHosts = {
+    "adguard.home" = {
+      default = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:3000";
+        proxyWebsockets = true;
       };
+    };
 
-      "netdata.home.lan" = {
-        locations."/" = {
-          proxyPass = "http://localhost:19999";
-          proxyWebsockets = true;
-        };
-      };
-
-      "jellyfin.home.lan" = {
-        locations."/" = {
-          proxyPass = "http://localhost:8096";
-          proxyWebsockets = true;
-        };
+    "syncthing.home" = {
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:8384";
+        proxyWebsockets = true;
       };
     };
   };
-
-  networking.firewall.allowedTCPPorts = [ 80 443 ];
-}
+};
 ```
 
-**Add to router DNS or `/etc/hosts`:**
+**Setup DNS for Clean URLs:**
 
+Option 1: Add to your router's DNS/hosts:
 ```
-192.168.1.154  adguard.home.lan
-192.168.1.154  netdata.home.lan
-192.168.1.154  jellyfin.home.lan
+192.168.1.154  adguard.home
+192.168.1.154  syncthing.home
 ```
 
-**Access:**
+Option 2: Add to `/etc/hosts` on client devices:
+```bash
+# On Windows: C:\Windows\System32\drivers\etc\hosts
+# On Linux/Mac: /etc/hosts
+192.168.1.154  adguard.home
+192.168.1.154  syncthing.home
+```
 
-- http://adguard.home.lan
-- http://netdata.home.lan
-- http://jellyfin.home.lan
+**Access services:**
+
+- AdGuard Home: http://adguard.home (instead of http://192.168.1.154:3000)
+- Syncthing: http://syncthing.home (instead of http://192.168.1.154:8384)
+
+**Adding More Virtual Hosts:**
+
+Edit `modules/services.nix` (use `es` alias) and add to the `virtualHosts` section:
+
+```nix
+"yourservice.home" = {
+  locations."/" = {
+    proxyPass = "http://127.0.0.1:PORT";
+    proxyWebsockets = true;  # Enable if service uses websockets
+  };
+};
+```
+
+Then add the DNS entry and `rebuild`
 
 ## Security Services
 
