@@ -28,17 +28,21 @@ echo ""
 echo "Select bootloader type:"
 echo "1) UEFI (modern systems, systemd-boot)"
 echo "2) BIOS/Legacy (older systems, GRUB)"
+echo "3) Exit to live environment"
 echo ""
-read -p "Enter choice (1 or 2): " BOOT_CHOICE
+read -p "Enter choice (1, 2, or 3): " BOOT_CHOICE
 
 if [ "$BOOT_CHOICE" = "1" ]; then
     CONFIG_FILE="configuration-uefi.nix"
     USE_UEFI=true
     echo "Using UEFI configuration"
 elif [ "$BOOT_CHOICE" = "2" ]; then
-    CONFIG_FILE="configuration.nix"
+    CONFIG_FILE="configuration-bios.nix"
     USE_UEFI=false
     echo "Using BIOS/GRUB configuration"
+elif [ "$BOOT_CHOICE" = "3" ]; then
+    echo "Exiting to live environment..."
+    exit 0
 else
     echo "Invalid choice"
     exit 1
@@ -124,35 +128,43 @@ echo "Copying configuration..."
 
 mkdir -p /mnt/etc/nixos/modules
 mkdir -p /mnt/etc/nixos/private
+mkdir -p /mnt/etc/nixos/home
 
-# Copy the selected configuration as configuration.nix
-cp /etc/nixos/$CONFIG_FILE /mnt/etc/nixos/configuration.nix || {
+# Copy the selected configuration as configuration.nix (FOLLOW SYMLINKS WITH -L)
+cp -L /etc/nixos/$CONFIG_FILE /mnt/etc/nixos/configuration.nix || {
     echo "Error: Failed to copy $CONFIG_FILE"
     exit 1
 }
 
-# Copy both config variants for future use
-cp /etc/nixos/configuration.nix /mnt/etc/nixos/configuration-bios.nix 2>/dev/null || true
-cp /etc/nixos/configuration-uefi.nix /mnt/etc/nixos/ 2>/dev/null || true
-cp /etc/nixos/iso-config.nix /mnt/etc/nixos/ 2>/dev/null || true
+# Copy both config variants for future use (FOLLOW SYMLINKS WITH -L)
+cp -L /etc/nixos/configuration-bios.nix /mnt/etc/nixos/ 2>/dev/null || true
+cp -L /etc/nixos/configuration-uefi.nix /mnt/etc/nixos/ 2>/dev/null || true
+cp -L /etc/nixos/iso-config.nix /mnt/etc/nixos/ 2>/dev/null || true
 
 if [ -d /etc/nixos/modules ] && [ "$(ls -A /etc/nixos/modules)" ]; then
-    cp -r /etc/nixos/modules/* /mnt/etc/nixos/modules/
+    cp -rL /etc/nixos/modules/* /mnt/etc/nixos/modules/
     echo "Copied modules directory"
 else
     echo "No modules directory found - creating empty"
 fi
 
 if [ -d /etc/nixos/private ] && [ "$(ls -A /etc/nixos/private)" ]; then
-    cp -r /etc/nixos/private/* /mnt/etc/nixos/private/
+    cp -rL /etc/nixos/private/* /mnt/etc/nixos/private/
     echo "Copied private directory"
 else
     echo "No private directory found - creating empty"
 fi
 
-cp /etc/nixos/build-iso.sh /mnt/etc/nixos/ 2>/dev/null || true
-cp /etc/nixos/install-nixos.sh /mnt/etc/nixos/ 2>/dev/null || true
-cp /etc/nixos/.gitignore /mnt/etc/nixos/ 2>/dev/null || true
+if [ -d /etc/nixos/home ] && [ "$(ls -A /etc/nixos/home)" ]; then
+    cp -rL /etc/nixos/home/* /mnt/etc/nixos/home/
+    echo "Copied home directory"
+else
+    echo "No home directory found - creating empty"
+fi
+
+cp -L /etc/nixos/build-iso.sh /mnt/etc/nixos/ 2>/dev/null || true
+cp -L /etc/nixos/install-nixos.sh /mnt/etc/nixos/ 2>/dev/null || true
+cp -L /etc/nixos/.gitignore /mnt/etc/nixos/ 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════════════════════
 # GENERATE HARDWARE CONFIG

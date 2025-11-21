@@ -168,6 +168,7 @@
 ║   rollback   - Rollback to previous generation             ║
 ║   update     - Update system and rebuild                   ║
 ║   cleanup    - Clean old generations                       ║
+║   optimize    - Deduplicate store                          ║
 ╠════════════════════════════════════════════════════════════╣
 ║ CONFIG EDITING:                                            ║
 ║   ec         - Edit configuration.nix                      ║
@@ -207,6 +208,8 @@
    test = "sudo nixos-rebuild test && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
+   cleanup = "sudo nix-collect-garbage -d";
+   optimize = "sudo nix-store --optimize";
 
    # Config editing
    ec = "sudo micro /etc/nixos/configuration.nix";

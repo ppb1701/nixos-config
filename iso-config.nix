@@ -5,68 +5,52 @@
     "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # FORCE UEFI BOOT FOR THE ISO ITSELF
-  # ═══════════════════════════════════════════════════════════════════════════
-  # This makes the ISO bootable on UEFI systems
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = false;  # ISO doesn't need to touch EFI vars
-
-  # Ensure ISO supports both BIOS and UEFI boot
-  isoImage.makeEfiBootable = true;
-  isoImage.makeUsbBootable = true;
+  nix.nixPath = [
+    "nixpkgs=${pkgs.path}"
+    "home-manager=${builtins.fetchTarball "https://github.com/nix-community/home-manager/archive/release-25.05.tar.gz"}"
+  ];
 
   # ═══════════════════════════════════════════════════════════════════════════
   # COPY CONFIGURATION FILES TO ISO
   # ═══════════════════════════════════════════════════════════════════════════
-  environment.etc = pkgs.lib.mkMerge [
-    # Base configuration files
-    {
-      "nixos/configuration.nix".source = ./configuration.nix;
-      "nixos/configuration-uefi.nix".source = ./configuration-uefi.nix;
-      "nixos/iso-config.nix".source = ./iso-config.nix;
-      "nixos/.gitignore".source = ./.gitignore;
 
-      "nixos/install-nixos.sh" = {
-        source = ./install-nixos.sh;
-        mode = "0755";
-      };
+  # Copy individual configuration files
+  environment.etc."nixos/configuration.nix".source = ./configuration.nix;
+  environment.etc."nixos/configuration-uefi.nix".source = ./configuration-uefi.nix;
+  environment.etc."nixos/configuration-bios.nix".source = ./configuration-bios.nix;
+  environment.etc."nixos/iso-config.nix".source = ./iso-config.nix;
+  environment.etc."nixos/.gitignore".source = ./.gitignore;
+  environment.etc."nixos/hardware-configuration.nix".source = ./hardware-configuration.nix;
+  environment.etc."nixos/starship.toml".source = ./starship.toml;
+  environment.etc."nixos/Readme.md".source = ./Readme.md;
 
-      "nixos/build-iso.sh" = {
-        source = ./build-iso.sh;
-        mode = "0755";
-      };
+  # Copy scripts with executable permissions
+  environment.etc."nixos/install-nixos.sh" = {
+    source = ./install-nixos.sh;
+    mode = "0755";
+  };
+  environment.etc."nixos/build-iso.sh" = {
+    source = ./build-iso.sh;
+    mode = "0755";
+  };
 
-      # Create empty directories
-      "nixos/modules/.keep".text = "";
-      "nixos/private/.keep".text = "";
-    }
+  # Copy modules directory files
+  environment.etc."nixos/modules/boot-bios.nix".source = ./modules/boot-bios.nix;
+  environment.etc."nixos/modules/boot-uefi.nix".source = ./modules/boot-uefi.nix;
+  environment.etc."nixos/modules/networking.nix".source = ./modules/networking.nix;
+  environment.etc."nixos/modules/services.nix".source = ./modules/services.nix;
+  environment.etc."nixos/modules/system.nix".source = ./modules/system.nix;
 
-    # Conditionally add module files if they exist
-    (if builtins.pathExists ./modules/adguard-home.nix then {
-      "nixos/modules/adguard-home.nix".source = ./modules/adguard-home.nix;
-    } else {})
+  # Copy home directory files
+  environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;
 
-    (if builtins.pathExists ./modules/networking.nix then {
-      "nixos/modules/networking.nix".source = ./modules/networking.nix;
-    } else {})
-
-    (if builtins.pathExists ./modules/syncthing.nix then {
-      "nixos/modules/syncthing.nix".source = ./modules/syncthing.nix;
-    } else {})
-
-    # Conditionally add private files if they exist
-    (if builtins.pathExists ./private/secrets.nix then {
-      "nixos/private/secrets.nix".source = ./private/secrets.nix;
-    } else {})
-
-    (if builtins.pathExists ./private/syncthing-devices.nix then {
-      "nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
-    } else {})
-  ];
+  # Copy private directory files
+  environment.etc."nixos/private/ssh-keys.nix".source = ./private/ssh-keys.nix;
+  environment.etc."nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
+  environment.etc."nixos/private/syncthing-secrets.nix".source = ./private/syncthing-secrets.nix;
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # AUTO-RUN INSTALLER
+  # AUTO-RUN INSTALLER ON BOOT
   # ═══════════════════════════════════════════════════════════════════════════
   systemd.services.auto-install = {
     description = "Automatic NixOS Installation (Ctrl+C to cancel)";
@@ -87,16 +71,23 @@
   # ═══════════════════════════════════════════════════════════════════════════
   # LIVE ENVIRONMENT SETTINGS
   # ═══════════════════════════════════════════════════════════════════════════
+  services.getty.autologinUser = "nixos";
+
+  networking.hostName = "nixos-installer";
   networking.wireless.enable = false;
   networking.networkmanager.enable = true;
 
   environment.systemPackages = with pkgs; [
-    git
     vim
-    micro
+    git
+    wget
+    curl
     htop
     parted
     gptfdisk
+    micro
+    jq
+    dig
   ];
 
   services.openssh = {
@@ -104,7 +95,5 @@
     settings.PermitRootLogin = "yes";
   };
 
-  services.getty.autologinUser = "nixos";
-
-  nixpkgs.hostPlatform = "x86_64-linux";
+  system.stateVersion = "25.05";
 }
