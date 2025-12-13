@@ -59,11 +59,14 @@ The simplest and safest method.
 2. **Verify no private config:**
 
    ```bash
-   # Should not exist or should be empty
+   # These should NOT exist in a clean checkout
+   ls -la private/syncthing-secrets.nix
    ls -la private/syncthing-devices.nix
+   ls -la private/ssh-keys.nix
 
-   # Should only have .example file
+   # Check what's in private/
    ls -la private/
+   # Should be empty or only contain placeholder files
    ```
 
 3. **Build the ISO:**
@@ -313,13 +316,16 @@ Build on your configured system but remove private data first.
 
    ```bash
    cd /etc/nixos
-   cp private/syncthing-devices.nix private/syncthing-devices.nix.backup
+   cp private/syncthing-secrets.nix private/syncthing-secrets.nix.backup
+   cp private/ssh-keys.nix private/ssh-keys.nix.backup 2>/dev/null || true
    ```
 
 2. **Remove private config:**
 
    ```bash
-   rm private/syncthing-devices.nix
+   rm private/syncthing-secrets.nix
+   rm private/syncthing-devices.nix 2>/dev/null || true  # Remove symlink if exists
+   rm private/ssh-keys.nix 2>/dev/null || true
    ```
 
 3. **Build ISO:**
@@ -331,7 +337,8 @@ Build on your configured system but remove private data first.
 4. **Restore private config:**
 
    ```bash
-   mv private/syncthing-devices.nix.backup private/syncthing-devices.nix
+   mv private/syncthing-secrets.nix.backup private/syncthing-secrets.nix
+   mv private/ssh-keys.nix.backup private/ssh-keys.nix 2>/dev/null || true
    ```
 
 5. **Verify ISO is clean:**
@@ -353,24 +360,31 @@ Create `build-public-iso-safe.sh`:
 #!/usr/bin/env bash
 set -e
 
-PRIVATE_CONFIG="private/syncthing-devices.nix"
-BACKUP_CONFIG="${PRIVATE_CONFIG}.backup"
+PRIVATE_FILES=(
+  "private/syncthing-secrets.nix"
+  "private/syncthing-devices.nix"
+  "private/ssh-keys.nix"
+)
 
 echo "==> Backing up private configuration..."
-if [ -f "$PRIVATE_CONFIG" ]; then
-  cp "$PRIVATE_CONFIG" "$BACKUP_CONFIG"
-  rm "$PRIVATE_CONFIG"
-  echo "Private config backed up and removed"
-fi
+for file in "${PRIVATE_FILES[@]}"; do
+  if [ -f "$file" ]; then
+    cp "$file" "${file}.backup"
+    rm "$file"
+    echo "Backed up and removed: $file"
+  fi
+done
 
 echo "==> Building public ISO..."
 ./build-iso.sh
 
 echo "==> Restoring private configuration..."
-if [ -f "$BACKUP_CONFIG" ]; then
-  mv "$BACKUP_CONFIG" "$PRIVATE_CONFIG"
-  echo "Private config restored"
-fi
+for file in "${PRIVATE_FILES[@]}"; do
+  if [ -f "${file}.backup" ]; then
+    mv "${file}.backup" "$file"
+    echo "Restored: $file"
+  fi
+done
 
 echo "==> Done! Public ISO built successfully"
 echo "ISO location: nixos-config.iso"
@@ -429,11 +443,16 @@ mkdir -p "$MOUNT_POINT"
 sudo mount -o loop "$ISO_FILE" "$MOUNT_POINT"
 
 echo "==> Checking for private configuration..."
-if [ -f "$MOUNT_POINT/etc/nixos-config/private/syncthing-devices.nix" ]; then
-  echo "❌ FAIL: Private Syncthing config found!"
-  FAILED=1
-else
-  echo "✅ PASS: No private Syncthing config"
+PRIVATE_FILES_FOUND=0
+for file in syncthing-secrets.nix syncthing-devices.nix ssh-keys.nix; do
+  if [ -f "$MOUNT_POINT/etc/nixos-config/private/$file" ]; then
+    echo "❌ FAIL: Private file found: $file"
+    PRIVATE_FILES_FOUND=1
+    FAILED=1
+  fi
+done
+if [ $PRIVATE_FILES_FOUND -eq 0 ]; then
+  echo "✅ PASS: No private configuration files found"
 fi
 
 echo "==> Checking for device IDs..."
@@ -477,35 +496,56 @@ chmod +x verify-public-iso.sh
 
 ### GitHub Releases
 
+**Current Release Location:**
+
+https://github.com/ppb1701/nixos-config/releases/tag/nixos
+
+This is where the latest pre-built ISO is available for download.
+
+**Creating New Releases:**
+
 1. Create release on GitHub
 2. Upload ISO as release asset
 3. Add release notes
+4. Update the release tag if needed
 
 **Example release notes:**
 
 ```
-## NixOS AdGuard Home Server v1.0.0
+## NixOS Configuration ISO
 
-A fully declarative AdGuard Home DNS server configuration for NixOS.
+A fully declarative NixOS configuration with AdGuard Home, Syncthing, Tailscale, and more.
 
 ### What's Included
 
-- AdGuard Home with 12 curated filter lists
-- Automated installation script
-- Modular configuration structure
-- Optional Syncthing support
+- AdGuard Home DNS filtering
+- Syncthing file synchronization
+- Tailscale VPN for remote access
+- Nginx reverse proxy
+- LXQT desktop environment
+- Automated installation script with BIOS/UEFI support
+- Extensive shell aliases for easy system management
 - Complete documentation
 
 ### Installation
 
-1. Download `nixos-config-v1.0.0.iso`
-2. Flash to USB drive
-3. Boot and run: `sudo /etc/nixos-config/install-nixos.sh`
-4. Follow the prompts
+1. Download the ISO
+2. Flash to USB drive (Rufus, dd, or Ventoy)
+3. Boot from USB
+4. Run: `sudo /etc/nixos-config/install-nixos.sh`
+5. Choose UEFI or BIOS boot mode
+6. Follow the prompts
 
 ### Documentation
 
 See the [README](https://github.com/ppb1701/nixos-config) for complete setup instructions.
+
+### Important Security Notice
+
+This ISO includes a temporary default password (`nixos`) for initial setup.
+**You must change this password immediately after installation!**
+
+See the README for security setup instructions.
 
 ### Checksums
 

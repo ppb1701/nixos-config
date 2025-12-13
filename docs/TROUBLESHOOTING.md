@@ -2,39 +2,62 @@
 
 This guide covers common issues you might encounter when setting up or running your NixOS AdGuard Home server.
 
+## Quick Troubleshooting with Shell Aliases
+
+The system includes helpful aliases for quick diagnostics. Type `help` to see all available commands.
+
+**Common diagnostic aliases:**
+```bash
+ags     # Check AdGuard Home status
+agl     # View AdGuard Home logs
+sts     # Check Syncthing status
+stl     # View Syncthing logs
+ports   # List all open ports
+diskspace  # Check disk usage
+meminfo    # Check memory usage
+```
+
 ## AdGuard Home Issues
 
 ### Web UI Not Accessible
 
 **Symptoms:**
-- Cannot access http://192.168.1.154:3000
+- Cannot access http://adguard.home or http://192.168.1.154:3000
 - Connection refused or timeout
 
 **Solutions:**
 
 1. Check if AdGuard Home is running:
    ```bash
-   systemctl status adguardhome
+   ags  # Quick alias
+   # Or: systemctl status adguardhome
    ```
 
-2. Check if the service is listening on the correct port:
+2. View logs for errors:
    ```bash
-   ss -tlnp | grep 3000
+   agl  # Quick alias
+   # Or: journalctl -u adguardhome -f
    ```
 
-3. Verify firewall rules:
+3. Check if the service is listening:
+   ```bash
+   ports | grep 3000
+   # Or: ss -tlnp | grep 3000
+   ```
+
+4. Try accessing via Nginx proxy:
+   - If http://192.168.1.154:3000 works but http://adguard.home doesn't
+   - Check DNS/hosts file has entry for adguard.home
+   - Verify Nginx is running: `systemctl status nginx`
+
+5. Verify firewall rules:
    ```bash
    sudo iptables -L -n | grep 3000
    ```
 
-4. Check AdGuard Home logs:
+6. Check configuration in modules/services.nix:
    ```bash
-   journalctl -u adguardhome -f
-   ```
-
-5. Verify configuration:
-   ```bash
-   cat /var/lib/AdGuardHome/AdGuardHome.yaml
+   es  # Quick edit alias
    ```
 
 ### DNS Not Working
@@ -138,24 +161,27 @@ This guide covers common issues you might encounter when setting up or running y
 
 **Solutions:**
 
-1. Verify device IDs are correct:
-   - Check web UI on each device
-   - Go to Actions → Show ID
-   - Compare with configuration
-
-2. Check firewall rules:
+1. Check Syncthing status and logs:
    ```bash
-   sudo iptables -L -n | grep 22000
+   sts  # Check status
+   stl  # View logs
    ```
 
-3. Verify Syncthing is running:
+2. Verify device IDs are correct:
+   - Check web UI: http://syncthing.home (or http://192.168.1.154:8384)
+   - Go to Actions → Show ID on each device
+   - Compare with `/etc/nixos/private/syncthing-secrets.nix`
+
+3. Edit device configuration if needed:
    ```bash
-   systemctl status syncthing@youruser
+   sudo micro /etc/nixos/private/syncthing-secrets.nix
+   rebuild  # Apply changes
    ```
 
-4. Check Syncthing logs:
+4. Check firewall allows Syncthing:
    ```bash
-   journalctl -u syncthing@youruser -f
+   ports | grep -E "22000|8384|21027"
+   # Or: sudo iptables -L -n | grep 22000
    ```
 
 5. Test connectivity between devices:
@@ -490,26 +516,20 @@ This guide covers common issues you might encounter when setting up or running y
 
 **Solutions:**
 
-1. **Run the cleanup script (recommended):**
+1. **Quick cleanup with alias (easiest):**
    ```bash
-   sudo /etc/nixos/cleanup-nixos.sh
+   diskspace  # Check current usage first
+   cleanup    # Remove old generations and optimize
+   diskspace  # Check space recovered
    ```
-   
-   This automated script will:
-   - Show disk usage before and after
-   - Remove generations older than 7 days
-   - Run full garbage collection
-   - Optimize store with hard-linking
-   - Clean temporary files
 
 2. **Check what's using space:**
    ```bash
-   # Check overall disk usage
-   df -h /
-   
+   diskspace  # Alias for df -h
+
    # Check Nix store size
    du -sh /nix/store
-   
+
    # Find largest store paths
    du -sh /nix/store/* | sort -hr | head -20
    ```
@@ -518,34 +538,28 @@ This guide covers common issues you might encounter when setting up or running y
    ```bash
    # List all generations
    sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
-   
+
    # Delete specific generations
    sudo nix-env --delete-generations 10 11 12 --profile /nix/var/nix/profiles/system
-   
+
    # Delete all but current and previous
    sudo nix-env --delete-generations old --profile /nix/var/nix/profiles/system
-   
+
    # Delete generations older than 30 days
    sudo nix-collect-garbage --delete-older-than 30d
    ```
 
 4. **Run garbage collection:**
    ```bash
-   # Full garbage collection
-   sudo nix-collect-garbage -d
-   
-   # This removes ALL unreachable store paths
-   # Make sure you don't need to rollback first!
+   cleanup  # Easiest - runs both commands below
+
+   # Or manually:
+   sudo nix-collect-garbage -d   # Removes unreachable store paths
+   optimize                        # Hard-link identical files (alias)
+   # Or: sudo nix-store --optimise
    ```
 
-5. **Optimize Nix store:**
-   ```bash
-   sudo nix-store --optimise
-   ```
-   
-   This hard-links identical files together, typically saving 10-30% of store size.
-
-6. **Clean old result symlinks:**
+5. **Clean old result symlinks:**
    ```bash
    find /etc/nixos -name "result*" -type l -delete
    find ~ -name "result*" -type l -delete
@@ -558,9 +572,9 @@ This guide covers common issues you might encounter when setting up or running y
 - Combined: Can recover 20-50GB on a system with many old generations
 
 **Prevention:**
-- Run `cleanup-nixos.sh` monthly
+- Run `cleanup` alias monthly
 - Don't keep more than 5-10 generations
-- Clean up after experimenting with new packages
+- Clean up after experimenting: `cleanup`
 - Remove unused packages from configuration
 
 ### Slow DNS Responses
@@ -650,26 +664,37 @@ This guide covers common issues you might encounter when setting up or running y
 ### Syncthing GUI Not Accessible
 
 **Symptoms:**
-- Can't access http://192.168.1.154:8384
+- Can't access http://syncthing.home or http://192.168.1.154:8384
 - Connection refused
 
 **Solutions:**
 
-1. Verify Syncthing is running:
+1. Check Syncthing status:
    ```bash
-   systemctl status syncthing
+   sts  # Status alias
+   stl  # Logs alias
    ```
 
 2. Check if port 8384 is listening:
    ```bash
-   ss -tlnp | grep 8384
+   ports | grep 8384
+   # Or: ss -tlnp | grep 8384
    ```
 
-3. Verify GUI password is set in `private/syncthing-secrets.nix`
-
-4. Check Syncthing logs:
+3. Verify GUI password is set:
    ```bash
-   journalctl -u syncthing -n 50
+   sudo micro /etc/nixos/private/syncthing-secrets.nix
+   ```
+   Make sure it has a `gui` section with user and password
+
+4. Try accessing via Nginx:
+   - If http://192.168.1.154:8384 works but http://syncthing.home doesn't
+   - Check DNS/hosts file has entry for syncthing.home
+   - Verify Nginx is running: `systemctl status nginx`
+
+5. Rebuild after configuration changes:
+   ```bash
+   rebuild
    ```
 
 ### Files Not Syncing
