@@ -218,6 +218,7 @@
    es = "sudo micro /etc/nixos/modules/services.nix";
    esy = "sudo micro /etc/nixos/modules/system.nix";
    ep = "sudo micro /etc/nixos/private/ssh-keys.nix";
+   escrt = "sudo micro /etc/nixos/private/secrets.nix";
    eu = "sudo micro /etc/nixos/configuration-uefi.nix";
    eb = "sudo micro /etc/nixos/configuration-bios.nix";
    ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
