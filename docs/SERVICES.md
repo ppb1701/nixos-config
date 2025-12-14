@@ -370,11 +370,618 @@ target/
 (?d)logs/
 ```
 
-## Monitoring Services
+## Monitoring and Alerting Stack
 
-### Netdata
+### Overview
 
-Real-time system monitoring with beautiful web interface.
+The system includes a complete monitoring and alerting stack built on industry-standard tools. This provides real-time metrics, visualization, log aggregation, and instant notifications.
+
+**Stack Components:**
+
+- **Prometheus:** Metrics collection and time-series database
+- **Grafana:** Beautiful dashboards and visualization
+- **Alertmanager:** Alert routing and notification delivery
+- **Loki:** Log aggregation and storage
+- **Promtail:** Log collection and shipping
+- **ntfy:** Self-hosted push notifications
+
+### Architecture
+
+```
+┌─────────────┐
+│   Services  │  (AdGuard, Nginx, System, etc.)
+└──────┬──────┘
+       │
+       ├──> Exporters ──> Prometheus ──> Alertmanager ──> ntfy/Email
+       │                      │
+       │                      └──────> Grafana (Dashboards)
+       │
+       └──> Promtail ─────> Loki ─────> Grafana (Logs)
+```
+
+### Prometheus (Port 9090)
+
+**Purpose:** Time-series metrics database and alerting engine
+
+**Configuration (in modules/services.nix):**
+
+```nix
+services.prometheus = {
+  enable = true;
+  port = 9090;
+  retentionTime = "30d";
+
+  exporters = {
+    node = {
+      enable = true;
+      enabledCollectors = [ "systemd" ];
+      port = 9100;
+    };
+
+    nginx = {
+      enable = true;
+      port = 9113;
+      scrapeUri = "http://127.0.0.1:8080/nginx_status";
+    };
+  };
+};
+```
+
+**Access:**
+- Via Nginx: http://prometheus.home
+- Direct: http://192.168.1.154:9090
+
+**Features:**
+- Collects metrics every 30 seconds
+- 30-day retention period
+- Node exporter for system metrics (CPU, RAM, disk, network)
+- Nginx exporter for web server metrics
+- Systemd service monitoring
+- Built-in alerting engine
+
+**Metrics Collected:**
+- System: CPU usage, memory, disk space, network I/O, load average
+- Services: Systemd unit status, service uptime
+- Nginx: Request rates, error rates, connections
+- Prometheus itself: Query performance, storage stats
+
+### Grafana (Port 3001)
+
+**Purpose:** Metrics visualization and dashboarding
+
+**Configuration:**
+
+```nix
+services.grafana = {
+  enable = true;
+  settings = {
+    server = {
+      http_addr = "0.0.0.0";
+      http_port = 3001;
+      domain = "grafana.home";
+    };
+
+    security = {
+      admin_user = "admin";
+      admin_password = (import /etc/nixos/private/secrets.nix).grafanaPassword;
+    };
+  };
+};
+```
+
+**Access:**
+- Via Nginx: http://grafana.home
+- Direct: http://192.168.1.154:3001
+- Username: `admin`
+- Password: From `/etc/nixos/private/secrets.nix`
+
+**Data Sources (Auto-configured):**
+- Prometheus (default) - for metrics
+- Loki - for logs
+
+**Setup:**
+
+1. Create password file:
+   ```bash
+   sudo micro /etc/nixos/private/secrets.nix
+   ```
+
+2. Add content:
+   ```nix
+   {
+     grafanaPassword = "your-secure-password-here";
+   }
+   ```
+
+3. Rebuild:
+   ```bash
+   rebuild
+   ```
+
+4. Access Grafana and import dashboards:
+   - Node Exporter Full (ID: 1860) - Comprehensive system metrics
+   - Nginx (ID: 12708) - Nginx performance
+   - Prometheus Stats (ID: 3662) - Prometheus monitoring
+
+### Alertmanager (Port 9093)
+
+**Purpose:** Alert routing, grouping, and notification delivery
+
+**Configuration:**
+
+```nix
+services.prometheus.alertmanager = {
+  enable = true;
+  port = 9093;
+
+  environmentFile = "/etc/nixos/private/alertmanager.env";
+
+  configuration = {
+    global = {
+      smtp_smarthost = "smtp.fastmail.com:587";
+      smtp_from = "$SMTP_USERNAME";
+      smtp_auth_username = "$SMTP_USERNAME";
+      smtp_auth_password = "$SMTP_PASSWORD";
+      smtp_require_tls = true;
+    };
+
+    route = {
+      receiver = "all-alerts";
+      group_by = [ "alertname" "severity" ];
+      group_wait = "30s";
+      group_interval = "5m";
+      repeat_interval = "4h";
+    };
+
+    receivers = [
+      {
+        name = "all-alerts";
+        webhook_configs = [
+          {
+            url = "http://localhost:2586/nixos";
+            send_resolved = true;
+          }
+        ];
+        email_configs = [
+          {
+            to = "$EMAIL_TO";
+            headers = {
+              Subject = "NixOS Server Alert";
+            };
+          }
+        ];
+      }
+    ];
+  };
+};
+```
+
+**Access:**
+- Via Nginx: http://alertmanager.home
+- Direct: http://192.168.1.154:9093
+
+**Setup:**
+
+1. Create environment file:
+   ```bash
+   sudo micro /etc/nixos/private/alertmanager.env
+   ```
+
+2. Add SMTP credentials:
+   ```bash
+   SMTP_USERNAME=your-email@fastmail.com
+   SMTP_PASSWORD=your-app-password
+   EMAIL_TO=alerts@your-domain.com
+   ```
+
+3. Rebuild:
+   ```bash
+   rebuild
+   ```
+
+**Alert Routing:**
+- Groups alerts by name and severity
+- Waits 30 seconds before sending first notification (to batch similar alerts)
+- Re-sends unresolved alerts every 4 hours
+- Sends to both ntfy (instant push) and email
+
+**Notification Channels:**
+1. **Webhook to ntfy** - Instant push notifications to mobile/desktop
+2. **Email** - Traditional email alerts via Fastmail SMTP
+
+### Alert Rules
+
+Six alert rules are configured to monitor system health:
+
+**1. ServiceDown (Critical)**
+- **Triggers:** Service unavailable for 2+ minutes
+- **Expression:** `up == 0`
+- **Severity:** Critical
+
+**2. DiskSpaceWarning (Warning)**
+- **Triggers:** Root filesystem <20% free for 5+ minutes
+- **Expression:** `(node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20`
+- **Severity:** Warning
+
+**3. DiskSpaceCritical (Critical)**
+- **Triggers:** Root filesystem <10% free for 2+ minutes
+- **Expression:** `(node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10`
+- **Severity:** Critical
+
+**4. HighCPUUsage (Warning)**
+- **Triggers:** CPU usage >80% for 10+ minutes
+- **Expression:** `100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80`
+- **Severity:** Warning
+
+**5. HighMemoryUsage (Warning)**
+- **Triggers:** Memory usage >90% for 5+ minutes
+- **Expression:** `(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90`
+- **Severity:** Warning
+
+**6. NginxHighErrorRate (Warning)**
+- **Triggers:** Nginx 5xx errors >0.05/sec for 5+ minutes
+- **Expression:** `rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05`
+- **Severity:** Warning
+
+### Loki (Port 3100)
+
+**Purpose:** Log aggregation and storage
+
+**Configuration:**
+
+```nix
+services.loki = {
+  enable = true;
+  configuration = {
+    server.http_listen_port = 3100;
+    auth_enabled = false;
+
+    schema_config = {
+      configs = [{
+        from = "2022-06-06";
+        store = "tsdb";
+        object_store = "filesystem";
+        schema = "v13";
+        index = {
+          prefix = "index_";
+          period = "24h";
+        };
+      }];
+    };
+
+    limits_config = {
+      reject_old_samples = true;
+      reject_old_samples_max_age = "168h";
+    };
+  };
+};
+```
+
+**Features:**
+- Stores logs for 7 days (168 hours)
+- Filesystem-based storage
+- Indexed for fast querying
+- Integrates with Grafana for log visualization
+
+**Storage Paths:**
+- Index: `/var/lib/loki/tsdb-index`
+- Cache: `/var/lib/loki/tsdb-cache`
+- Chunks: `/var/lib/loki/chunks`
+
+**Access:**
+- Logs are queried through Grafana (not direct web UI)
+- Use Grafana Explore → Loki data source
+
+### Promtail (Port 3031)
+
+**Purpose:** Log collection and shipping to Loki
+
+**Configuration:**
+
+```nix
+services.promtail = {
+  enable = true;
+  configuration = {
+    server = {
+      http_listen_port = 3031;
+    };
+
+    scrape_configs = [
+      {
+        job_name = "journal";
+        journal = {
+          max_age = "12h";
+          labels = {
+            job = "systemd-journal";
+            host = "nixos";
+          };
+        };
+        relabel_configs = [{
+          source_labels = [ "__journal__systemd_unit" ];
+          target_label = "unit";
+        }];
+      }
+    ];
+  };
+};
+```
+
+**Features:**
+- Collects systemd journal logs (last 12 hours)
+- Labels logs with systemd unit information
+- Forwards to Loki in real-time
+- Preserves log metadata (timestamps, units, hosts)
+
+**Log Sources:**
+- All systemd services (AdGuard, Syncthing, Nginx, etc.)
+- System logs
+- Kernel messages
+
+### ntfy (Port 2586)
+
+**Purpose:** Self-hosted push notification service
+
+**Configuration:**
+
+```nix
+services.ntfy-sh = {
+  enable = true;
+  settings = {
+    base-url = "http://ntfy.home";
+    listen-http = "0.0.0.0:2586";
+    cache-file = "/var/lib/ntfy-sh/cache.db";
+    cache-duration = "24h";
+    keepalive-interval = "45s";
+    auth-default-access = "read-write";
+    behind-proxy = true;
+  };
+};
+```
+
+**Access:**
+- Via Nginx: http://ntfy.home
+- Direct: http://192.168.1.154:2586
+
+**Features:**
+- Instant push notifications to mobile/desktop
+- 24-hour message cache (catch up when connecting via Tailscale)
+- Webhook endpoint for Alertmanager
+- No authentication required on local network
+- Mobile apps available (iOS, Android)
+- Web push notifications
+
+**Setup:**
+
+1. **Install ntfy mobile app:**
+   - iOS: Search "ntfy" in App Store
+   - Android: Google Play or F-Droid
+
+2. **Subscribe to server alerts:**
+   - Open app
+   - Add subscription
+   - Topic URL: `http://YOUR_SERVER_IP:2586/nixos`
+   - Or via Tailscale: `http://YOUR_TAILSCALE_HOSTNAME:2586/nixos`
+
+3. **Test notification:**
+   ```bash
+   curl -d "Test alert from NixOS server" http://localhost:2586/nixos
+   ```
+
+**Alert Topic:**
+- Topic name: `nixos`
+- Alertmanager sends to: `http://localhost:2586/nixos`
+- Subscribe in app to receive all server alerts
+
+### Quick Start Guide
+
+**1. Set up private configuration files:**
+
+```bash
+# Create secrets file for Grafana password
+sudo micro /etc/nixos/private/secrets.nix
+
+# Add:
+{
+  grafanaPassword = "your-secure-password";
+}
+
+# Create alertmanager environment file
+sudo micro /etc/nixos/private/alertmanager.env
+
+# Add:
+SMTP_USERNAME=your-email@fastmail.com
+SMTP_PASSWORD=your-app-password
+EMAIL_TO=alerts@your-domain.com
+```
+
+**2. Rebuild system:**
+
+```bash
+rebuild
+```
+
+**3. Configure DNS rewrites in AdGuard Home:**
+
+Since AdGuard Home is your DNS server, use DNS Rewrites for clean local URLs:
+
+1. Open AdGuard Home: http://adguard.home (or http://192.168.1.154:3000)
+2. Go to **Filters** → **DNS rewrites**
+3. Add the following rewrites:
+
+```
+prometheus.home    → 192.168.1.154
+grafana.home       → 192.168.1.154
+alertmanager.home  → 192.168.1.154
+ntfy.home          → 192.168.1.154
+```
+
+Click "Add" for each entry.
+
+**Alternative:** Add to `/etc/hosts` on client devices if not using AdGuard Home as DNS:
+
+```
+192.168.1.154  prometheus.home
+192.168.1.154  grafana.home
+192.168.1.154  alertmanager.home
+192.168.1.154  ntfy.home
+```
+
+**4. Access dashboards:**
+
+- **Grafana:** http://grafana.home (admin / your-password)
+- **Prometheus:** http://prometheus.home
+- **Alertmanager:** http://alertmanager.home
+- **ntfy:** http://ntfy.home
+
+**5. Set up mobile notifications:**
+
+- Install ntfy app on phone
+- Subscribe to: `http://YOUR_SERVER_IP:2586/nixos`
+- Test: `curl -d "Test" http://localhost:2586/nixos`
+
+### Monitoring Workflow
+
+**Daily Monitoring:**
+1. Check Grafana dashboards for system health
+2. Review Prometheus alerts in Alertmanager
+3. Check logs in Grafana Explore (Loki)
+
+**When Alerts Fire:**
+1. Receive instant push notification via ntfy
+2. Receive email backup notification
+3. Check Alertmanager for alert details
+4. View relevant metrics in Grafana
+5. Check logs in Grafana Explore
+6. Resolve issue
+7. Alert automatically clears when resolved
+
+**Useful Queries:**
+
+Prometheus:
+```promql
+# CPU usage per core
+100 - (avg by (cpu) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# Memory usage
+(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+# Disk usage
+100 - ((node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100)
+```
+
+Loki (in Grafana Explore):
+```logql
+# AdGuard Home logs
+{unit="adguardhome.service"}
+
+# Nginx errors
+{unit="nginx.service"} |= "error"
+
+# All critical logs
+{job="systemd-journal"} |= "critical"
+```
+
+### Shell Aliases for Monitoring
+
+Added to `home/ppb1701.nix`:
+
+```bash
+escrt    # Edit /etc/nixos/private/secrets.nix (Grafana password)
+ea       # Edit /etc/nixos/private/alertmanager.env (SMTP settings)
+```
+
+### Firewall Configuration
+
+Monitoring ports opened in `modules/networking.nix`:
+
+```nix
+networking.firewall.allowedTCPPorts = [
+  3001  # Grafana
+  2586  # ntfy
+  9090  # Prometheus
+];
+```
+
+**Note:** Other monitoring components (Alertmanager, Loki, Promtail, exporters) are localhost-only and not exposed externally.
+
+### Troubleshooting
+
+**Grafana login fails:**
+
+```bash
+# Check Grafana service
+systemctl status grafana
+
+# View logs
+journalctl -u grafana -f
+
+# Reset password in secrets.nix
+sudo micro /etc/nixos/private/secrets.nix
+rebuild
+```
+
+**Alerts not sending:**
+
+```bash
+# Check Alertmanager
+systemctl status prometheus-alertmanager
+
+# View logs
+journalctl -u prometheus-alertmanager -f
+
+# Verify environment file
+sudo cat /etc/nixos/private/alertmanager.env
+
+# Test email manually
+curl -XPOST http://localhost:9093/api/v1/alerts -d '[{"labels":{"alertname":"test"}}]'
+```
+
+**ntfy notifications not working:**
+
+```bash
+# Check ntfy service
+systemctl status ntfy-sh
+
+# View logs
+journalctl -u ntfy-sh -f
+
+# Test locally
+curl -d "Test message" http://localhost:2586/nixos
+
+# Check firewall
+ss -tlnp | grep 2586
+```
+
+**Prometheus not collecting metrics:**
+
+```bash
+# Check Prometheus
+systemctl status prometheus
+
+# View targets
+curl http://localhost:9090/api/v1/targets | jq
+
+# Check exporters
+systemctl status prometheus-node-exporter
+systemctl status prometheus-nginx-exporter
+```
+
+**Logs not appearing in Loki:**
+
+```bash
+# Check Loki
+systemctl status loki
+
+# Check Promtail
+systemctl status promtail
+
+# View Promtail logs
+journalctl -u promtail -f
+```
+
+### Alternative: Netdata
+
+If you prefer a simpler, all-in-one monitoring solution:
 
 **Create `modules/netdata.nix`:**
 
@@ -958,18 +1565,44 @@ services.nginx = {
 
 **Setup DNS for Clean URLs:**
 
-Option 1: Add to your router's DNS/hosts:
+**Recommended: Use AdGuard Home DNS Rewrites**
+
+Since AdGuard Home is your DNS server, configure DNS rewrites for automatic resolution across all network devices:
+
+1. Open AdGuard Home: http://192.168.1.154:3000
+2. Go to **Filters** → **DNS rewrites**
+3. Add DNS rewrites for all services:
+
+**Core Services:**
 ```
-192.168.1.154  adguard.home
-192.168.1.154  syncthing.home
+adguard.home       → 192.168.1.154
+syncthing.home     → 192.168.1.154
 ```
 
-Option 2: Add to `/etc/hosts` on client devices:
+**Monitoring Services** (if enabled):
+```
+grafana.home       → 192.168.1.154
+prometheus.home    → 192.168.1.154
+alertmanager.home  → 192.168.1.154
+ntfy.home          → 192.168.1.154
+```
+
+Click "Add" for each entry.
+
+**Benefits:**
+- Works for all devices on your network automatically
+- No need to configure each device individually
+- Centralized DNS management
+- Changes apply network-wide instantly
+
+**Alternative: Manual /etc/hosts entries**
+
+If you're not using AdGuard Home as your network DNS server, add to `/etc/hosts` on each client device:
+
 ```bash
 # On Windows: C:\Windows\System32\drivers\etc\hosts
 # On Linux/Mac: /etc/hosts
-192.168.1.154  adguard.home
-192.168.1.154  syncthing.home
+192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home
 ```
 
 **Access services:**

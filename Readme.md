@@ -64,7 +64,7 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Secure LAN-only sync
   - Web UI accessible via Nginx reverse proxy (http://syncthing.home)
 - **Nginx:** Reverse proxy for clean local URLs
-  - Access services via friendly names (adguard.home, syncthing.home)
+  - Access services via friendly names (adguard.home, syncthing.home, grafana.home, etc.)
   - No need to remember port numbers
 - **Tailscale:** Secure remote access VPN
   - Access your server from anywhere
@@ -72,6 +72,31 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 - **SSH Access:** Secure remote management
   - Key-based authentication support
   - Auto-restart on failure
+
+### Monitoring and Alerting Stack
+
+- **Prometheus:** Metrics collection and time-series database
+  - 30-day retention, system and service metrics
+  - Node and Nginx exporters
+  - Web UI at http://prometheus.home
+- **Grafana:** Beautiful dashboards and visualization
+  - Pre-configured Prometheus and Loki data sources
+  - Import community dashboards
+  - Web UI at http://grafana.home
+- **Alertmanager:** Alert routing and notifications
+  - Email alerts via Fastmail SMTP
+  - Push notifications via ntfy
+  - Web UI at http://alertmanager.home
+- **Loki + Promtail:** Log aggregation and collection
+  - 7-day log retention
+  - Query logs through Grafana
+  - Systemd journal collection
+- **ntfy:** Self-hosted push notifications
+  - Instant alerts to mobile/desktop
+  - 24-hour message cache
+  - Web UI and mobile apps at http://ntfy.home
+
+See `docs/SERVICES.md` for detailed setup and configuration.
 
 ### Desktop Environment
 
@@ -90,6 +115,8 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 - **Private Configuration:** Sensitive data kept out of Git
   - `syncthing-secrets.nix` - Syncthing GUI password and device config
   - `ssh-keys.nix` - SSH authorized keys
+  - `secrets.nix` - Grafana admin password
+  - `alertmanager.env` - SMTP credentials for email alerts
 - **Home Manager:** User environment management
   - Custom ZSH configuration with starship prompt
   - Extensive shell aliases for system management
@@ -202,6 +229,65 @@ nixos-generate-config --show-hardware-config
 
 ### Optional Services
 
+#### Monitoring and Alerting
+
+**Prerequisites:**
+
+Create required private configuration files:
+
+1. **Grafana password file:**
+   ```bash
+   sudo micro /etc/nixos/private/secrets.nix
+   ```
+
+   Add content:
+   ```nix
+   {
+     grafanaPassword = "your-secure-password-here";
+   }
+   ```
+
+2. **Alertmanager SMTP configuration:**
+   ```bash
+   sudo micro /etc/nixos/private/alertmanager.env
+   ```
+
+   Add content:
+   ```bash
+   SMTP_USERNAME=your-email@fastmail.com
+   SMTP_PASSWORD=your-fastmail-app-password
+   EMAIL_TO=alerts@your-domain.com
+   ```
+
+3. **Rebuild system:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+4. **Configure DNS rewrites in AdGuard Home:**
+
+   Open AdGuard Home web UI → Filters → DNS rewrites, and add:
+
+   ```
+   grafana.home       → 192.168.1.154
+   prometheus.home    → 192.168.1.154
+   alertmanager.home  → 192.168.1.154
+   ntfy.home          → 192.168.1.154
+   ```
+
+5. **Access monitoring services:**
+   - **Grafana:** http://grafana.home (username: admin, password: from secrets.nix)
+   - **Prometheus:** http://prometheus.home
+   - **Alertmanager:** http://alertmanager.home
+   - **ntfy:** http://ntfy.home
+
+6. **Set up mobile notifications:**
+   - Install ntfy app (iOS/Android)
+   - Subscribe to: `http://YOUR_SERVER_IP:2586/nixos`
+   - Test: `curl -d "Test" http://localhost:2586/nixos`
+
+> **Note:** See `docs/SERVICES.md` for complete monitoring stack documentation including alert rules, Grafana dashboard setup, and troubleshooting.
+
 #### Syncthing (File Sync)
 
 **Setup:**
@@ -248,20 +334,63 @@ nixos-generate-config --show-hardware-config
    ```
 
 6. Access Syncthing web UI:
-   - **Via Nginx:** http://syncthing.home (requires adding to /etc/hosts or router DNS)
+   - **Via Nginx:** http://syncthing.home (requires DNS rewrite in AdGuard Home - see below)
    - **Direct access:** http://192.168.1.154:8384
    - **Username:** ppb1701
    - **Password:** (what you set in syncthing-secrets.nix)
 
 > **Note:** The `private/` directory is gitignored to protect your device IDs and password.
 
+#### DNS Configuration for Clean URLs
+
+To access services via clean URLs (adguard.home, syncthing.home, etc.), configure DNS rewrites in AdGuard Home:
+
+**Setup:**
+
+1. Open AdGuard Home web UI: http://192.168.1.154:3000
+2. Go to **Filters** → **DNS rewrites**
+3. Add these DNS rewrites:
+
+```
+adguard.home       → 192.168.1.154
+syncthing.home     → 192.168.1.154
+```
+
+If you've also set up monitoring services, add:
+
+```
+grafana.home       → 192.168.1.154
+prometheus.home    → 192.168.1.154
+alertmanager.home  → 192.168.1.154
+ntfy.home          → 192.168.1.154
+```
+
+**How it works:**
+- AdGuard Home acts as your network's DNS server
+- DNS rewrites map `.home` domains to your server's IP
+- Works automatically for all devices using AdGuard Home as DNS
+- No need to edit /etc/hosts on every device
+
+**Alternative (if not using AdGuard Home as DNS):**
+
+Add to `/etc/hosts` on each client device:
+
+```
+192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home
+```
+
 #### Other Services
 
-See `docs/` directory for guides on:
+See `docs/SERVICES.md` for guides on:
 
-- Adding monitoring (Netdata, Grafana)
-- Setting up remote access (Tailscale, WireGuard)
-- Configuring additional services
+- Comprehensive monitoring and alerting stack (Prometheus, Grafana, Alertmanager, Loki, ntfy)
+- Alternative monitoring solutions (Netdata, Uptime Kuma)
+- Remote access options (Tailscale already included, WireGuard alternative)
+- File storage (Nextcloud, Samba)
+- Media services (Jellyfin, Navidrome)
+- Home automation (Home Assistant)
+- Development tools (Gitea)
+- Security services (Fail2ban, Vaultwarden)
 
 ## System Maintenance
 
@@ -425,12 +554,16 @@ private/
 ├── syncthing-secrets.nix          # Syncthing GUI password and device IDs (gitignored)
 ├── syncthing-devices.nix          # Symlink to syncthing-secrets.nix (gitignored)
 ├── ssh-keys.nix                   # SSH authorized keys (gitignored)
+├── secrets.nix                    # Grafana admin password (gitignored)
+├── alertmanager.env               # SMTP credentials for alerts (gitignored)
 ```
 
 **What's kept private:**
 
 - Syncthing device IDs and GUI password (syncthing-secrets.nix)
 - SSH authorized keys (ssh-keys.nix)
+- Grafana admin password (secrets.nix)
+- Email SMTP credentials for alerting (alertmanager.env)
 - Any other sensitive credentials
 
 **What's public:**
@@ -448,11 +581,27 @@ sudo micro /etc/nixos/private/syncthing-secrets.nix
 # Create ssh-keys.nix (list of SSH public keys)
 sudo micro /etc/nixos/private/ssh-keys.nix
 
+# Create secrets.nix (Grafana password)
+sudo micro /etc/nixos/private/secrets.nix
+
+# Create alertmanager.env (SMTP credentials)
+sudo micro /etc/nixos/private/alertmanager.env
+
 # Example ssh-keys.nix content:
 [
   "ssh-ed25519 AAAAC3... user@hostname"
   "ssh-rsa AAAAB3... user@another-host"
 ]
+
+# Example secrets.nix content:
+{
+  grafanaPassword = "your-secure-password-here";
+}
+
+# Example alertmanager.env content:
+SMTP_USERNAME=your-email@fastmail.com
+SMTP_PASSWORD=your-app-password
+EMAIL_TO=alerts@your-domain.com
 ```
 
 ### Building Public ISOs
@@ -474,11 +623,13 @@ The system includes extensive shell aliases for quick configuration editing. Run
 ```bash
 # Edit configurations quickly
 ec      # Edit configuration.nix
-es      # Edit modules/services.nix (AdGuard, Syncthing, etc.)
+es      # Edit modules/services.nix (AdGuard, Syncthing, monitoring, etc.)
 en      # Edit modules/networking.nix
 esy     # Edit modules/system.nix
 eh      # Edit home/ppb1701.nix
 eb/eu   # Edit BIOS/UEFI configuration
+escrt   # Edit private/secrets.nix (Grafana password)
+ea      # Edit private/alertmanager.env (SMTP credentials)
 
 # System management
 rebuild # Rebuild and switch to new config (auto-reloads shell)

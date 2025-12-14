@@ -63,6 +63,8 @@ The simplest and safest method.
    ls -la private/syncthing-secrets.nix
    ls -la private/syncthing-devices.nix
    ls -la private/ssh-keys.nix
+   ls -la private/secrets.nix
+   ls -la private/alertmanager.env
 
    # Check what's in private/
    ls -la private/
@@ -318,6 +320,8 @@ Build on your configured system but remove private data first.
    cd /etc/nixos
    cp private/syncthing-secrets.nix private/syncthing-secrets.nix.backup
    cp private/ssh-keys.nix private/ssh-keys.nix.backup 2>/dev/null || true
+   cp private/secrets.nix private/secrets.nix.backup 2>/dev/null || true
+   cp private/alertmanager.env private/alertmanager.env.backup 2>/dev/null || true
    ```
 
 2. **Remove private config:**
@@ -326,6 +330,8 @@ Build on your configured system but remove private data first.
    rm private/syncthing-secrets.nix
    rm private/syncthing-devices.nix 2>/dev/null || true  # Remove symlink if exists
    rm private/ssh-keys.nix 2>/dev/null || true
+   rm private/secrets.nix 2>/dev/null || true
+   rm private/alertmanager.env 2>/dev/null || true
    ```
 
 3. **Build ISO:**
@@ -339,6 +345,8 @@ Build on your configured system but remove private data first.
    ```bash
    mv private/syncthing-secrets.nix.backup private/syncthing-secrets.nix
    mv private/ssh-keys.nix.backup private/ssh-keys.nix 2>/dev/null || true
+   mv private/secrets.nix.backup private/secrets.nix 2>/dev/null || true
+   mv private/alertmanager.env.backup private/alertmanager.env 2>/dev/null || true
    ```
 
 5. **Verify ISO is clean:**
@@ -364,6 +372,8 @@ PRIVATE_FILES=(
   "private/syncthing-secrets.nix"
   "private/syncthing-devices.nix"
   "private/ssh-keys.nix"
+  "private/secrets.nix"
+  "private/alertmanager.env"
 )
 
 echo "==> Backing up private configuration..."
@@ -444,7 +454,7 @@ sudo mount -o loop "$ISO_FILE" "$MOUNT_POINT"
 
 echo "==> Checking for private configuration..."
 PRIVATE_FILES_FOUND=0
-for file in syncthing-secrets.nix syncthing-devices.nix ssh-keys.nix; do
+for file in syncthing-secrets.nix syncthing-devices.nix ssh-keys.nix secrets.nix alertmanager.env; do
   if [ -f "$MOUNT_POINT/etc/nixos-config/private/$file" ]; then
     echo "❌ FAIL: Private file found: $file"
     PRIVATE_FILES_FOUND=1
