@@ -223,6 +223,7 @@
    eb = "sudo micro /etc/nixos/configuration-bios.nix";
    ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
    euefi = "sudo micro /etc/nixos/modules/boot-uefi.nix";
+   ea ="sudo micro /etc/nixos/private/alertmanager.env";
 
    # Git operations
    gc = "cd /etc/nixos && sudo git add . && sudo git commit";
