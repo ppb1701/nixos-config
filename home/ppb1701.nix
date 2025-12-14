@@ -176,9 +176,11 @@
 ║   en         - Edit modules/networking.nix                 ║
 ║   es         - Edit modules/services.nix                   ║
 ║   esy        - Edit modules/system.nix                     ║
-║   ebios         - Edit modules/boot-bios.nix               ║
-║   euefi         - Edit modules/boot-uefi.nix               ║
+║   ebios      - Edit modules/boot-bios.nix                  ║
+║   euefi      - Edit modules/boot-uefi.nix                  ║
 ║   ep         - Edit private/ssh-keys.nix                   ║
+║   escrt      - Edit private/secrets.nix                    ║
+║   ea         - Edit private/alertmanager.env               ║
 ╠════════════════════════════════════════════════════════════╣
 ║ GIT OPERATIONS:                                            ║
 ║   gc         - Git commit (add all & commit)               ║
