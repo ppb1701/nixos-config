@@ -47,7 +47,7 @@
   # Copy private directory files
   environment.etc."nixos/private/ssh-keys.nix".source = ./private/ssh-keys.nix;
   environment.etc."nixos/private/secrets.nix".source = ./private/secrets.nix;
-  environment.etc."nixos/private/ssh-keys.nix".source = ./private/alertmanager.env;
+  environment.etc."nixos/private/alertmanager.env".source = ./private/alertmanager.env;
   environment.etc."nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
   environment.etc."nixos/private/syncthing-secrets.nix".source = ./private/syncthing-secrets.nix;
 
