@@ -246,5 +246,3 @@ echo ""
 echo "Rebooting in 10 seconds..."
 sleep 10
 reboot
-
-reboot
