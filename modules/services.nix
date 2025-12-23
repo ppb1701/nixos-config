@@ -464,9 +464,42 @@
   # ═══════════════════════════════════════════════════════════════════════════
   # NOTEDISCOVERY - WEB-BASED KNOWLEDGE BASE
   # ═══════════════════════════════════════════════════════════════════════════
+
+  # One-time setup service - clones repo and installs dependencies
+  systemd.services.notediscovery-setup = {
+    description = "NoteDiscovery One-Time Setup";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "notediscovery";
+      Group = "notediscovery";
+    };
+
+    path = with pkgs; [ git python3 ];
+
+    script = ''
+      if [ ! -d /var/lib/notediscovery/.git ]; then
+        echo "Cloning NoteDiscovery..."
+        ${pkgs.git}/bin/git clone https://github.com/gamosoft/NoteDiscovery.git /var/lib/notediscovery
+      fi
+
+      if [ ! -d /var/lib/notediscovery/venv ]; then
+        echo "Creating Python virtual environment..."
+        ${pkgs.python3}/bin/python3 -m venv /var/lib/notediscovery/venv
+        /var/lib/notediscovery/venv/bin/pip install -r /var/lib/notediscovery/requirements.txt
+      fi
+    '';
+  };
+
+  # Main NoteDiscovery service
   systemd.services.notediscovery = {
     description = "NoteDiscovery Knowledge Base";
-    after = [ "network.target" "syncthing.service" ];
+    after = [ "network.target" "syncthing.service" "notediscovery-setup.service" ];
+    requires = [ "notediscovery-setup.service" ];
     wantedBy = [ "multi-user.target" ];
 
     serviceConfig = {
@@ -492,10 +525,11 @@
     environment = {
       PYTHONUNBUFFERED = "1";
       CONFIG_PATH = "/etc/nixos/private/notediscovery-config.yaml";
+      PORT = "5000";
     };
   };
 
-  # Create the notediscovery user
+  # Create the notediscovery user and set proper directory permissions
   users.users.notediscovery = {
     isSystemUser = true;
     group = "notediscovery";
@@ -504,4 +538,9 @@
   };
 
   users.groups.notediscovery = {};
+
+  # Ensure proper permissions on the directory
+  systemd.tmpfiles.rules = [
+    "d /var/lib/notediscovery 0755 notediscovery notediscovery -"
+  ];
 }

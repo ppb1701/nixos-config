@@ -18,6 +18,8 @@ result-*
 # Private configuration
 private/syncthing-devices.nix
 private/*.nix
+private/*.yaml
+private/*.env
 !private/*.nix.example
 private/blog/
 
@@ -32,4 +34,3 @@ hardware-configuration.nix
 chatlog.txt
 docs/BLOG-SERIES-PLAN.md
 private/BLOG-SERIES-PLAN.md
-private/alertmanager.env
