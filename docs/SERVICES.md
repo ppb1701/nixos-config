@@ -8,8 +8,11 @@ Your configuration already includes these services (configured in `modules/servi
 
 - **AdGuard Home** - DNS filtering and ad blocking (port 53, web UI port 3000)
 - **Syncthing** - File synchronization (ports 22000, 21027, 8384)
+- **NoteDiscovery** - Web-based knowledge base for markdown notes (port 5000)
 - **Tailscale** - VPN for secure remote access
 - **Nginx** - Reverse proxy for clean local URLs (ports 80, 443)
+- **Prometheus + Grafana + Alertmanager + Loki** - Complete monitoring and alerting stack
+- **ntfy** - Self-hosted push notifications (port 2586)
 
 Plus desktop environment (LXQT), SSH server, and system utilities.
 
@@ -368,6 +371,211 @@ target/
 // Specific paths
 (?d)cache/
 (?d)logs/
+```
+
+## Knowledge Management
+
+### NoteDiscovery (Port 5000)
+
+**Purpose:** Web-based knowledge base for searching and managing markdown notes
+
+NoteDiscovery provides a searchable web interface for your markdown notes, perfect for personal wikis, documentation, and knowledge bases. It integrates seamlessly with Syncthing for note synchronization across devices.
+
+**Features:**
+- Full-text search across all markdown files
+- Clean web interface with dark/light themes
+- Password authentication
+- Works with any markdown notes (Obsidian, Joplin, plain text, etc.)
+- Automatic file watching for real-time updates
+- Integrates with Syncthing for cross-device sync
+
+**Already Included:** NoteDiscovery is pre-configured in `modules/services.nix` but requires private configuration.
+
+#### Setup Guide
+
+**1. Create Configuration Files**
+
+```bash
+# Edit the notes path configuration
+sudo micro /etc/nixos/private/notediscovery-config.nix
+```
+
+Add:
+```nix
+{
+  notesPath = "/home/ppb1701/Sync/Notes";  # Change to your actual notes folder
+}
+```
+
+```bash
+# Edit the app configuration
+sudo micro /etc/nixos/private/notediscovery-config.yaml
+```
+
+Add:
+```yaml
+security:
+  enabled: true
+  username: "admin"
+  password_hash: "WILL_GENERATE_IN_NEXT_STEP"
+
+app:
+  title: "My Knowledge Base"
+  notes_path: "/home/ppb1701/Sync/Notes"  # Must match the path above
+  host: "127.0.0.1"
+  port: 5000
+  debug: false
+
+ui:
+  theme: "dark"
+  items_per_page: 50
+  enable_search: true
+```
+
+**2. First Rebuild (Will Fail - Expected!)**
+
+```bash
+sudo nixos-rebuild switch
+```
+
+This will fail because NoteDiscovery isn't installed yet, but it will create the `/var/lib/notediscovery` directory.
+
+**3. Install NoteDiscovery**
+
+```bash
+# Switch to notediscovery user context
+sudo -u notediscovery bash
+
+# Navigate to working directory
+cd /var/lib/notediscovery
+
+# Clone the repository
+git clone https://github.com/ppb1701/NoteDiscovery.git .
+
+# Create virtual environment
+python3 -m venv venv
+
+# Install dependencies
+./venv/bin/pip install -r requirements.txt
+
+# Generate password hash
+./venv/bin/python3 generate_password.py
+
+# Follow prompts to create your password
+# Copy the generated hash
+
+# Exit notediscovery user context
+exit
+```
+
+**4. Update Configuration with Password Hash**
+
+```bash
+sudo micro /etc/nixos/private/notediscovery-config.yaml
+```
+
+Replace `WILL_GENERATE_IN_NEXT_STEP` with your generated password hash.
+
+**5. Rebuild System**
+
+```bash
+sudo nixos-rebuild switch
+```
+
+**6. Configure DNS Rewrite (Optional but Recommended)**
+
+Open AdGuard Home → Filters → DNS rewrites:
+```
+notes.home → YOUR_SERVER_IP
+```
+
+**7. Access NoteDiscovery**
+
+- **Via Nginx (recommended):** http://notes.home
+- **Direct access:** http://YOUR_SERVER_IP:5000
+- **Username:** admin (or whatever you set)
+- **Password:** (what you generated in step 3)
+
+#### Integration with Syncthing
+
+NoteDiscovery works great with Syncthing for note synchronization:
+
+1. **Set up a Syncthing folder for notes:**
+   ```nix
+   # In /etc/nixos/private/syncthing-secrets.nix
+   folders = {
+     "Notes" = {
+       path = "/home/ppb1701/Sync/Notes";
+       devices = [ "laptop" "phone" "tablet" ];
+     };
+   };
+   ```
+
+2. **Point NoteDiscovery to the same folder:**
+   ```nix
+   # In /etc/nixos/private/notediscovery-config.nix
+   {
+     notesPath = "/home/ppb1701/Sync/Notes";
+   }
+   ```
+
+3. **Rebuild:** `sudo nixos-rebuild switch`
+
+Now your notes sync across devices via Syncthing and are searchable via NoteDiscovery!
+
+#### Service Management
+
+```bash
+# Check status
+systemctl status notediscovery
+
+# View logs
+journalctl -u notediscovery -f
+
+# Restart service
+sudo systemctl restart notediscovery
+```
+
+#### Firewall Configuration
+
+Port 5000 is already opened in `modules/networking.nix`:
+
+```nix
+networking.firewall.allowedTCPPorts = [
+  5000    # Note Discovery (direct access)
+];
+```
+
+Access via Nginx (port 80) is also configured for clean URLs.
+
+#### Troubleshooting
+
+**Service fails to start:**
+- Check logs: `journalctl -u notediscovery -f`
+- Verify notes path exists: `ls -la /home/ppb1701/Sync/Notes`
+- Ensure notediscovery user has read access to notes folder
+- Check virtual environment exists: `ls -la /var/lib/notediscovery/venv`
+
+**Can't access web UI:**
+- Verify service is running: `systemctl status notediscovery`
+- Check port binding: `ss -tlnp | grep 5000`
+- Test direct access: `curl http://localhost:5000`
+- Verify nginx configuration: `systemctl status nginx`
+
+**Notes not appearing:**
+- Refresh the page (NoteDiscovery watches for file changes)
+- Check file permissions on notes folder
+- Verify notes path in config matches actual location
+
+#### Updating NoteDiscovery
+
+```bash
+sudo -u notediscovery bash
+cd /var/lib/notediscovery
+git pull
+./venv/bin/pip install -r requirements.txt --upgrade
+exit
+sudo systemctl restart notediscovery
 ```
 
 ## Monitoring and Alerting Stack

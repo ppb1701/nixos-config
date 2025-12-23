@@ -64,7 +64,7 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Secure LAN-only sync
   - Web UI accessible via Nginx reverse proxy (http://syncthing.home)
 - **Nginx:** Reverse proxy for clean local URLs
-  - Access services via friendly names (adguard.home, syncthing.home, grafana.home, etc.)
+  - Access services via friendly names (adguard.home, syncthing.home, grafana.home, notes.home, etc.)
   - No need to remember port numbers
 - **Tailscale:** Secure remote access VPN
   - Access your server from anywhere
@@ -72,6 +72,11 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 - **SSH Access:** Secure remote management
   - Key-based authentication support
   - Auto-restart on failure
+- **NoteDiscovery:** Web-based knowledge base (optional)
+  - Full-text search across markdown notes
+  - Web UI accessible via Nginx reverse proxy (http://notes.home)
+  - Integrates with Syncthing for note synchronization
+  - Password-protected with configurable authentication
 
 ### Monitoring and Alerting Stack
 
@@ -113,10 +118,10 @@ See `docs/SERVICES.md` for detailed setup and configuration.
   - `system.nix` - System packages, users, desktop
   - `boot-bios.nix` / `boot-uefi.nix` - Boot configurations
 - **Private Configuration:** Sensitive data kept out of Git
-  - `syncthing-secrets.nix` - Syncthing GUI password and device config
-  - `ssh-keys.nix` - SSH authorized keys
-  - `secrets.nix` - Grafana admin password
-  - `alertmanager.env` - SMTP credentials for email alerts
+  - `private/` directory gitignored for security
+  - `private-example/` provides templates for required config files
+  - Automated installer copies examples to `private/` as starting point
+  - Files: `syncthing-secrets.nix`, `ssh-keys.nix`, `secrets.nix`, `alertmanager.env`, `notediscovery-config.*`
 - **Home Manager:** User environment management
   - Custom ZSH configuration with starship prompt
   - Extensive shell aliases for system management
@@ -273,6 +278,7 @@ Create required private configuration files:
    prometheus.home    → 192.168.1.154
    alertmanager.home  → 192.168.1.154
    ntfy.home          → 192.168.1.154
+   notes.home         → 192.168.1.154
    ```
 
 5. **Access monitoring services:**
@@ -356,13 +362,14 @@ adguard.home       → 192.168.1.154
 syncthing.home     → 192.168.1.154
 ```
 
-If you've also set up monitoring services, add:
+If you've also set up monitoring and knowledge management services, add:
 
 ```
 grafana.home       → 192.168.1.154
 prometheus.home    → 192.168.1.154
 alertmanager.home  → 192.168.1.154
 ntfy.home          → 192.168.1.154
+notes.home         → 192.168.1.154
 ```
 
 **How it works:**
@@ -376,7 +383,7 @@ ntfy.home          → 192.168.1.154
 Add to `/etc/hosts` on each client device:
 
 ```
-192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home
+192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home
 ```
 
 #### Other Services
@@ -450,7 +457,20 @@ nixos-config/
 ├── private/                       # Private config (gitignored)
 │   ├── syncthing-secrets.nix     # Syncthing settings and device IDs
 │   ├── syncthing-devices.nix     # Symlink to syncthing-secrets.nix
-│   └── ssh-keys.nix              # SSH authorized keys
+│   ├── ssh-keys.nix              # SSH authorized keys
+│   ├── secrets.nix               # Service passwords (Grafana, etc.)
+│   ├── alertmanager.env          # SMTP credentials for email alerts
+│   ├── notediscovery-config.nix  # NoteDiscovery notes path
+│   └── notediscovery-config.yaml # NoteDiscovery app configuration
+├── private-example/               # Example templates for private config
+│   ├── README.md                 # Instructions for private config
+│   ├── secrets.nix               # Example secrets file
+│   ├── ssh-keys.nix              # Example SSH keys file
+│   ├── alertmanager.env          # Example SMTP config
+│   ├── syncthing-secrets.nix     # Example Syncthing config
+│   ├── syncthing-devices.nix     # Example Syncthing devices
+│   ├── notediscovery-config.nix  # Example NoteDiscovery path config
+│   └── notediscovery-config.yaml # Example NoteDiscovery app config
 ├── docs/                          # Documentation
 │   ├── CUSTOMIZATION.md          # How to customize services
 │   ├── SERVICES.md               # Additional services guide
@@ -556,7 +576,13 @@ private/
 ├── ssh-keys.nix                   # SSH authorized keys (gitignored)
 ├── secrets.nix                    # Grafana admin password (gitignored)
 ├── alertmanager.env               # SMTP credentials for alerts (gitignored)
+├── notediscovery-config.nix       # NoteDiscovery notes path (gitignored)
+├── notediscovery-config.yaml      # NoteDiscovery app config (gitignored)
 ```
+
+**Example Templates:**
+
+The `private-example/` directory contains template files showing the required structure for private configuration. During installation, if no private configuration backup exists, these example files are automatically copied to `/etc/nixos/private/` as a starting point.
 
 **What's kept private:**
 
@@ -564,6 +590,7 @@ private/
 - SSH authorized keys (ssh-keys.nix)
 - Grafana admin password (secrets.nix)
 - Email SMTP credentials for alerting (alertmanager.env)
+- NoteDiscovery configuration and password hash (notediscovery-config.nix/yaml)
 - Any other sensitive credentials
 
 **What's public:**
@@ -574,7 +601,14 @@ private/
 
 **Setting up private files:**
 
+The automated installer copies example files from `private-example/` to `private/` automatically. You can also set them up manually:
+
 ```bash
+# Option 1: Copy all example files at once
+sudo cp -r private-example/* /etc/nixos/private/
+sudo chmod 600 /etc/nixos/private/*
+
+# Option 2: Create individual files
 # Create syncthing-secrets.nix
 sudo micro /etc/nixos/private/syncthing-secrets.nix
 
@@ -586,6 +620,10 @@ sudo micro /etc/nixos/private/secrets.nix
 
 # Create alertmanager.env (SMTP credentials)
 sudo micro /etc/nixos/private/alertmanager.env
+
+# Create NoteDiscovery config (optional)
+sudo micro /etc/nixos/private/notediscovery-config.nix
+sudo micro /etc/nixos/private/notediscovery-config.yaml
 
 # Example ssh-keys.nix content:
 [
