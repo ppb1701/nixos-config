@@ -1,0 +1,20 @@
+# EXAMPLE FILE - DO NOT USE AS-IS
+# Copy to /etc/nixos/private/notediscovery-config.yaml and customize
+# Generate password hash with: cd /var/lib/notediscovery && sudo -u notediscovery ./venv/bin/python3 generate_password.py
+
+security:
+  enabled: true
+  username: "admin"
+  password_hash: "GENERATE_WITH_generate_password.py"
+
+app:
+  title: "My Knowledge Base"
+  notes_path: "/home/ppb1701/Sync/Notes"  # Change to your Syncthing folder
+  host: "127.0.0.1"
+  port: 5000
+  debug: false
+
+ui:
+  theme: "dark"
+  items_per_page: 50
+  enable_search: true

@@ -38,8 +38,9 @@ This repository supports both boot modes:
 
 - No device IDs
 - Generic configuration
-- Example templates
+- Example templates (in `private-example/` directory)
 - For others to use as starting point
+- The installer automatically copies `private-example/` files to `private/` during installation
 
 ## Method 1: Clean Checkout Build
 
@@ -65,10 +66,16 @@ The simplest and safest method.
    ls -la private/ssh-keys.nix
    ls -la private/secrets.nix
    ls -la private/alertmanager.env
+   ls -la private/notediscovery-config.nix
+   ls -la private/notediscovery-config.yaml
 
    # Check what's in private/
    ls -la private/
-   # Should be empty or only contain placeholder files
+   # Should be empty (private/ is gitignored)
+
+   # Verify private-example exists with template files
+   ls -la private-example/
+   # Should contain example template files (these ARE safe to include in ISOs)
    ```
 
 3. **Build the ISO:**
@@ -79,9 +86,10 @@ The simplest and safest method.
 
    **Result:** ISO contains:
    - All public configuration
-   - Example templates
-   - No device IDs
+   - Example templates (in `private-example/` directory)
+   - No device IDs in `private/` (that directory is empty/gitignored)
    - No private information
+   - Installer automatically copies `private-example/` to `private/` during setup
 
 4. **Share the ISO:**
 

@@ -128,6 +128,19 @@
           proxyWebsockets = true;
         };
       };
+
+      "notes.home" = {
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:5000";
+          proxyWebsockets = true;
+          extraConfig = ''
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+          '';
+        };
+      };
     };
   };
 
@@ -447,4 +460,48 @@
       behind-proxy = true;
     };
   };
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NOTEDISCOVERY - WEB-BASED KNOWLEDGE BASE
+  # ═══════════════════════════════════════════════════════════════════════════
+  systemd.services.notediscovery = {
+    description = "NoteDiscovery Knowledge Base";
+    after = [ "network.target" "syncthing.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    serviceConfig = {
+      Type = "simple";
+      User = "notediscovery";
+      Group = "notediscovery";
+      WorkingDirectory = "/var/lib/notediscovery";
+      ExecStart = "/var/lib/notediscovery/venv/bin/python3 /var/lib/notediscovery/run.py";
+      Restart = "on-failure";
+      RestartSec = "10s";
+
+      # Security hardening
+      NoNewPrivileges = true;
+      PrivateTmp = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      ReadWritePaths = [ 
+        "/var/lib/notediscovery"
+        (import /etc/nixos/private/notediscovery-config.nix).notesPath
+      ];
+    };
+
+    environment = {
+      PYTHONUNBUFFERED = "1";
+      CONFIG_PATH = "/etc/nixos/private/notediscovery-config.yaml";
+    };
+  };
+
+  # Create the notediscovery user
+  users.users.notediscovery = {
+    isSystemUser = true;
+    group = "notediscovery";
+    home = "/var/lib/notediscovery";
+    createHome = true;
+  };
+
+  users.groups.notediscovery = {};
 }

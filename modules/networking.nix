@@ -63,7 +63,8 @@
       80      # HTTP - Nginx
       443     # HTTPS
       3000    # AdGuard Home web UI (direct access)
-      #8000   #temp httpserver file transfer.  disable for harden normal use.
+	  5000    # Note Discovery (direct access)
+      #8000   # temp httpserver file transfer.  disable for harden normal use.
       8384    # Syncthing web UI (direct access)
       22000   # Syncthing file transfers
       3001    # Grafana

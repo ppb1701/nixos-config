@@ -50,6 +50,17 @@
   environment.etc."nixos/private/alertmanager.env".source = ./private/alertmanager.env;
   environment.etc."nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
   environment.etc."nixos/private/syncthing-secrets.nix".source = ./private/syncthing-secrets.nix;
+  
+  # Copy private-example directory files (these become the default private files in the ISO)
+  environment.etc."nixos/private-example/README.md".source = ./private-example/README.md;
+  environment.etc."nixos/private-example/secrets.nix".source = ./private-example/secrets.nix;
+  environment.etc."nixos/private-example/ssh-keys.nix".source = ./private-example/ssh-keys.nix;
+  environment.etc."nixos/private-example/alertmanager.env".source = ./private-example/alertmanager.env;
+  environment.etc."nixos/private-example/syncthing-devices.nix".source =   ./private-example/syncthing-devices.nix;
+  environment.etc."nixos/private-example/syncthing-secrets.nix".source = ./private-example/syncthing-secrets.nix;
+  environment.etc."nixos/private-example/notediscovery-config.nix".source = ./private-example/notediscovery-config.nix;
+  environment.etc."nixos/private-example/notediscovery-config.yaml".source = ./private-example/notediscovery-config.yaml;
+
 
   # ═══════════════════════════════════════════════════════════════════════════
   # AUTO-RUN INSTALLER ON BOOT

@@ -148,11 +148,18 @@ else
     echo "No modules directory found - creating empty"
 fi
 
+# Copy private directory - prioritize existing backup, fall back to examples
 if [ -d /etc/nixos/private ] && [ "$(ls -A /etc/nixos/private)" ]; then
+    # User has backed up their private configs - use those
     cp -rL /etc/nixos/private/* /mnt/etc/nixos/private/
-    echo "Copied private directory"
+    echo "Copied private directory (from backup)"
+elif [ -d /etc/nixos/private-example ] && [ "$(ls -A /etc/nixos/private-example)" ]; then
+    # No backup found - use example files
+    cp -rL /etc/nixos/private-example/* /mnt/etc/nixos/private/
+    echo "Copied private-example files to private directory (fresh install)"
 else
-    echo "No private directory found - creating empty"
+    # Neither exists - create empty directory
+    echo "No private or private-example directory found - creating empty private directory"
 fi
 
 if [ -d /etc/nixos/home ] && [ "$(ls -A /etc/nixos/home)" ]; then
@@ -242,6 +249,20 @@ echo "  3. Rebuild the system:"
 echo "     sudo nixos-rebuild switch"
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════"
+echo "📝 OPTIONAL: Configure NoteDiscovery (Web-based Knowledge Base)"
+echo "═══════════════════════════════════════════════════════════════════════════"
+echo ""
+echo "NoteDiscovery will auto-install on first boot but needs configuration."
+echo ""
+echo "To enable NoteDiscovery:"
+echo "  1. Edit /etc/nixos/private/notediscovery-config.nix (set notes path)"
+echo "  2. Edit /etc/nixos/private/notediscovery-config.yaml (set password hash)"
+echo "  3. Generate password: cd /var/lib/notediscovery && sudo -u notediscovery ./venv/bin/python3 generate_password.py"
+echo "  4. sudo nixos-rebuild switch"
+echo "  5. Add DNS rewrite: notes.home -> YOUR_IP"
+echo ""
+echo "To disable NoteDiscovery:"
+echo "  Comment out the NoteDiscovery section in /etc/nixos/modules/services.nix"
 echo ""
 echo "Rebooting in 10 seconds..."
 sleep 10
