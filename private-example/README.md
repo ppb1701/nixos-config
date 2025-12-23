@@ -38,6 +38,19 @@ Contains your SSH public keys for remote access.
 Required values:
 - authorizedKeys: List of SSH public keys (generate with ssh-keygen -t ed25519)
 
+### syncthing-secrets.nix
+Contains Syncthing configuration including devices, folders, and authentication.
+
+Required values:
+- gui.user: Username for Syncthing web interface
+- gui.password: Password for Syncthing web interface
+- prometheus_auth.username: Username for Prometheus to scrape Syncthing metrics
+- prometheus_auth.password: Password for Prometheus authentication
+- devices: Your Syncthing devices (get IDs from each device's web UI)
+- folders: Folders to sync across devices
+
+Note: The prometheus_auth credentials should match the Syncthing GUI credentials
+
 ### alertmanager.env
 Contains SMTP credentials for email alerts (optional).
 
