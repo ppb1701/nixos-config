@@ -8,6 +8,11 @@
     password = "CHANGE_ME_TO_STRONG_PASSWORD";
   };
 
+  prometheus_auth = {
+    username = "your-syncthing-username";
+    password = "your-syncthing-password";
+  };
+
   devices = {
     # Add your devices here
     # "my-laptop" = {

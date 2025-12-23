@@ -33,6 +33,11 @@ ui:
 plugins:
   enabled: []  # List of enabled plugins (empty for basic functionality)
 
+# Search settings
+search:
+  enabled: true
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # NOTES:
 # - The storage.notes_dir should point to /var/lib/obsidian/ppb (or your chosen location)

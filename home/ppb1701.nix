@@ -181,6 +181,8 @@
 ║   ep         - Edit private/ssh-keys.nix                   ║
 ║   escrt      - Edit private/secrets.nix                    ║
 ║   ea         - Edit private/alertmanager.env               ║
+║   eny        - Edit private/notediscovery-config.yaml      ║
+║   enx        - Edit private/notediscovery-config.nix       ║
 ╠════════════════════════════════════════════════════════════╣
 ║ GIT OPERATIONS:                                            ║
 ║   gc         - Git commit (add all & commit)               ║
@@ -226,6 +228,8 @@
    ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
    euefi = "sudo micro /etc/nixos/modules/boot-uefi.nix";
    ea ="sudo micro /etc/nixos/private/alertmanager.env";
+   eny ="sudo micro /etc/nixos/private/notediscovery-config.yaml";
+   enx ="sudo micro /etc/nixos/private/notediscovery-config.nix";
 
    # Git operations
    gc = "cd /etc/nixos && sudo git add . && sudo git commit";

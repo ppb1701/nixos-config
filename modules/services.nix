@@ -164,6 +164,23 @@
         port = 9113;
         scrapeUri = "http://127.0.0.1:8080/nginx_status";
       };
+
+      # Blackbox Exporter for HTTP health checks
+      blackbox = {
+        enable = true;
+        port = 9115;
+        configFile = pkgs.writeText "blackbox.yml" ''
+          modules:
+            http_2xx:
+              prober: http
+              timeout: 5s
+              http:
+                valid_status_codes: [200]
+                method: GET
+                follow_redirects: true
+                preferred_ip_protocol: "ip4"
+        '';
+      };
     };
 
     scrapeConfigs = [
@@ -185,6 +202,43 @@
           targets = [ "127.0.0.1:${toString config.services.prometheus.port}" ];
         }];
       }
+      {
+        job_name = "syncthing";
+        metrics_path = "/metrics";
+        static_configs = [{
+          targets = [ "127.0.0.1:8384" ];
+        }];
+        basic_auth = (import /etc/nixos/private/syncthing-secrets.nix).prometheus_auth;
+      }
+      # Blackbox exporter probes for HTTP health checks
+      {
+        job_name = "blackbox";
+        metrics_path = "/probe";
+        params = {
+          module = [ "http_2xx" ];
+        };
+        static_configs = [{
+          targets = [
+            "http://127.0.0.1:5000"      # NoteDiscovery
+            "http://127.0.0.1:8384"      # Syncthing GUI
+            "http://127.0.0.1:3000"      # AdGuard Home
+          ];
+        }];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            target_label = "__param_target";
+          }
+          {
+            source_labels = [ "__param_target" ];
+            target_label = "instance";
+          }
+          {
+            target_label = "__address__";
+            replacement = "127.0.0.1:9115";
+          }
+        ];
+      }
     ];
 
     # Alert Rules
@@ -202,6 +256,15 @@
                 annotations:
                   summary: "Service down"
                   description: "A service has been down for more than 2 minutes."
+
+              - alert: HTTPProbeFailure
+                expr: probe_success{job="blackbox"} == 0
+                for: 2m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "HTTP probe failed for {{ $labels.instance }}"
+                  description: "{{ $labels.instance }} has been unreachable via HTTP for more than 2 minutes."
 
               - alert: DiskSpaceWarning
                 expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
@@ -247,6 +310,7 @@
                 annotations:
                   summary: "High Nginx 5xx error rate"
                   description: "Nginx is returning too many 5xx errors."
+
       ''
     ];
 
@@ -516,7 +580,7 @@
       PrivateTmp = true;
       ProtectSystem = "strict";
       ProtectHome = true;
-      ReadWritePaths = [ 
+      ReadWritePaths = [
         "/var/lib/notediscovery"
         (import /etc/nixos/private/notediscovery-config.nix).notesPath
       ];
