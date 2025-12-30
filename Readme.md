@@ -82,7 +82,9 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 
 - **Prometheus:** Metrics collection and time-series database
   - 30-day retention, system and service metrics
-  - Node and Nginx exporters
+  - Node, Nginx, and Blackbox exporters
+  - Syncthing metrics monitoring
+  - HTTP health checks for services
   - Web UI at http://prometheus.home
 - **Grafana:** Beautiful dashboards and visualization
   - Pre-configured Prometheus and Loki data sources
@@ -311,6 +313,11 @@ Create required private configuration files:
        password = "your-strong-password-here";
      };
 
+     prometheus_auth = {
+       username = "ppb1701";  # Should match gui.user
+       password = "your-strong-password-here";  # Should match gui.password
+     };
+
      devices = {
        "my-laptop" = {
          id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
@@ -325,6 +332,8 @@ Create required private configuration files:
      };
    }
    ```
+
+   **Note:** The `prometheus_auth` section allows Prometheus to scrape Syncthing metrics for monitoring.
 
 3. Get device IDs from each device:
    - Install Syncthing on the device

@@ -86,6 +86,11 @@ Continue editing `private/syncthing-secrets.nix`:
     password = "your-strong-password-here";
   };
 
+  prometheus_auth = {
+    username = "ppb1701";  # Should match gui.user
+    password = "your-strong-password-here";  # Should match gui.password
+  };
+
   devices = {
     "windows-desktop" = {
       id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
@@ -587,6 +592,10 @@ The system includes a complete monitoring and alerting stack built on industry-s
 **Stack Components:**
 
 - **Prometheus:** Metrics collection and time-series database
+  - Node exporter for system metrics
+  - Nginx exporter for web server metrics
+  - Blackbox exporter for HTTP health checks
+  - Syncthing metrics with authentication
 - **Grafana:** Beautiful dashboards and visualization
 - **Alertmanager:** Alert routing and notification delivery
 - **Loki:** Log aggregation and storage
@@ -631,7 +640,48 @@ services.prometheus = {
       port = 9113;
       scrapeUri = "http://127.0.0.1:8080/nginx_status";
     };
+
+    blackbox = {
+      enable = true;
+      port = 9115;
+      configFile = pkgs.writeText "blackbox.yml" ''
+        modules:
+          http_2xx:
+            prober: http
+            timeout: 5s
+            http:
+              valid_status_codes: [200]
+              method: GET
+              follow_redirects: true
+              preferred_ip_protocol: "ip4"
+      '';
+    };
   };
+
+  scrapeConfigs = [
+    # ... node, nginx, prometheus jobs ...
+    {
+      job_name = "syncthing";
+      metrics_path = "/metrics";
+      static_configs = [{
+        targets = [ "127.0.0.1:8384" ];
+      }];
+      basic_auth = (import /etc/nixos/private/syncthing-secrets.nix).prometheus_auth;
+    }
+    {
+      job_name = "blackbox";
+      metrics_path = "/probe";
+      params = { module = [ "http_2xx" ]; };
+      static_configs = [{
+        targets = [
+          "http://127.0.0.1:5000"   # NoteDiscovery
+          "http://127.0.0.1:8384"   # Syncthing GUI
+          "http://127.0.0.1:3000"   # AdGuard Home
+        ];
+      }];
+      # Relabel configs for blackbox exporter
+    }
+  ];
 };
 ```
 
@@ -642,16 +692,42 @@ services.prometheus = {
 **Features:**
 - Collects metrics every 30 seconds
 - 30-day retention period
-- Node exporter for system metrics (CPU, RAM, disk, network)
-- Nginx exporter for web server metrics
+- Multiple exporters for comprehensive monitoring:
+  - **Node exporter** (port 9100): System metrics (CPU, RAM, disk, network)
+  - **Nginx exporter** (port 9113): Web server metrics
+  - **Blackbox exporter** (port 9115): HTTP health checks
+- Syncthing metrics monitoring with authentication
 - Systemd service monitoring
 - Built-in alerting engine
 
 **Metrics Collected:**
-- System: CPU usage, memory, disk space, network I/O, load average
-- Services: Systemd unit status, service uptime
-- Nginx: Request rates, error rates, connections
-- Prometheus itself: Query performance, storage stats
+- **System:** CPU usage, memory, disk space, network I/O, load average
+- **Services:** Systemd unit status, service uptime
+- **Nginx:** Request rates, error rates, connections
+- **Syncthing:** Sync status, connected devices, folder statistics
+- **Health Checks:** HTTP availability for NoteDiscovery, Syncthing GUI, AdGuard Home
+- **Prometheus itself:** Query performance, storage stats
+
+**Syncthing Metrics Setup:**
+
+To enable Syncthing metrics monitoring, ensure your `/etc/nixos/private/syncthing-secrets.nix` includes prometheus_auth credentials:
+
+```nix
+{
+  gui = {
+    user = "ppb1701";
+    password = "your-password";
+  };
+
+  prometheus_auth = {
+    username = "ppb1701";  # Should match gui.user
+    password = "your-password";  # Should match gui.password
+  };
+
+  devices = { ... };
+  folders = { ... };
+}
+```
 
 ### Grafana (Port 3001)
 
@@ -1172,6 +1248,10 @@ curl http://localhost:9090/api/v1/targets | jq
 # Check exporters
 systemctl status prometheus-node-exporter
 systemctl status prometheus-nginx-exporter
+systemctl status prometheus-blackbox-exporter
+
+# Test blackbox exporter
+curl http://localhost:9115/probe?target=http://localhost:3000&module=http_2xx
 ```
 
 **Logs not appearing in Loki:**
