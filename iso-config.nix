@@ -1,112 +1,28 @@
-{ config, pkgs, modulesPath, ... }:
+#!/usr/bin/env bash
+set -e
 
-{
-  imports = [
-    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
-  ];
+echo "Building NixOS custom ISO..."
+echo ""
 
-  nix.nixPath = [
-    "nixpkgs=${pkgs.path}"
-    "home-manager=${builtins.fetchTarball "https://github.com/nix-community/home-manager/archive/release-25.05.tar.gz"}"
-  ];
+# Build the ISO
+nix-build '<nixpkgs/nixos>' \
+    -A config.system.build.isoImage \
+    -I nixos-config=./iso-config.nix \
+    -v
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # COPY CONFIGURATION FILES TO ISO
-  # ═══════════════════════════════════════════════════════════════════════════
+# Find the ISO
+ISO_PATH=$(find result/iso -name "*.iso" | head -n 1)
 
-  # Copy individual configuration files
-  environment.etc."nixos/configuration.nix".source = ./configuration.nix;
-  environment.etc."nixos/configuration-uefi.nix".source = ./configuration-uefi.nix;
-  environment.etc."nixos/configuration-bios.nix".source = ./configuration-bios.nix;
-  environment.etc."nixos/iso-config.nix".source = ./iso-config.nix;
-  environment.etc."nixos/.gitignore".source = ./.gitignore;
-  environment.etc."nixos/hardware-configuration.nix".source = ./hardware-configuration.nix;
-  environment.etc."nixos/starship.toml".source = ./starship.toml;
-  environment.etc."nixos/Readme.md".source = ./Readme.md;
+if [ -z "$ISO_PATH" ]; then
+    echo "Error: ISO not found in result/iso/"
+    exit 1
+fi
 
-  # Copy scripts with executable permissions
-  environment.etc."nixos/install-nixos.sh" = {
-    source = ./install-nixos.sh;
-    mode = "0755";
-  };
-  environment.etc."nixos/build-iso.sh" = {
-    source = ./build-iso.sh;
-    mode = "0755";
-  };
-
-  # Copy modules directory files
-  environment.etc."nixos/modules/boot-bios.nix".source = ./modules/boot-bios.nix;
-  environment.etc."nixos/modules/boot-uefi.nix".source = ./modules/boot-uefi.nix;
-  environment.etc."nixos/modules/networking.nix".source = ./modules/networking.nix;
-  environment.etc."nixos/modules/services.nix".source = ./modules/services.nix;
-  environment.etc."nixos/modules/system.nix".source = ./modules/system.nix;
-
-  # Copy home directory files
-  environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;
-
-  # Copy private directory files
-  environment.etc."nixos/private/ssh-keys.nix".source = ./private/ssh-keys.nix;
-  environment.etc."nixos/private/secrets.nix".source = ./private/secrets.nix;
-  environment.etc."nixos/private/alertmanager.env".source = ./private/alertmanager.env;
-  environment.etc."nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
-  environment.etc."nixos/private/syncthing-secrets.nix".source = ./private/syncthing-secrets.nix;
-  
-  # Copy private-example directory files (these become the default private files in the ISO)
-  environment.etc."nixos/private-example/README.md".source = ./private-example/README.md;
-  environment.etc."nixos/private-example/secrets.nix".source = ./private-example/secrets.nix;
-  environment.etc."nixos/private-example/ssh-keys.nix".source = ./private-example/ssh-keys.nix;
-  environment.etc."nixos/private-example/alertmanager.env".source = ./private-example/alertmanager.env;
-  environment.etc."nixos/private-example/syncthing-devices.nix".source =   ./private-example/syncthing-devices.nix;
-  environment.etc."nixos/private-example/syncthing-secrets.nix".source = ./private-example/syncthing-secrets.nix;
-  environment.etc."nixos/private-example/notediscovery-config.nix".source = ./private-example/notediscovery-config.nix;
-  environment.etc."nixos/private-example/notediscovery-config.yaml".source = ./private-example/notediscovery-config.yaml;
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # AUTO-RUN INSTALLER ON BOOT
-  # ═══════════════════════════════════════════════════════════════════════════
-  systemd.services.auto-install = {
-    description = "Automatic NixOS Installation (Ctrl+C to cancel)";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/install-nixos.sh";
-      StandardInput = "tty";
-      StandardOutput = "inherit";
-      StandardError = "inherit";
-      TTYPath = "/dev/tty1";
-      TTYReset = "yes";
-      TTYVHangup = "yes";
-    };
-  };
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # LIVE ENVIRONMENT SETTINGS
-  # ═══════════════════════════════════════════════════════════════════════════
-  services.getty.autologinUser = "nixos";
-
-  networking.hostName = "nixos-installer";
-  networking.wireless.enable = false;
-  networking.networkmanager.enable = true;
-
-  environment.systemPackages = with pkgs; [
-    vim
-    git
-    wget
-    curl
-    htop
-    parted
-    gptfdisk
-    micro
-    jq
-    dig
-  ];
-
-  services.openssh = {
-    enable = true;
-    settings.PermitRootLogin = "yes";
-  };
-
-  system.stateVersion = "25.05";
-}
+echo ""
+echo "ISO built successfully!"
+echo "Location: $ISO_PATH"
+echo ""
+echo "Copy to Ventoy USB with:"
+echo "sudo cp $ISO_PATH /path/to/ventoy/"
+echo "Use Rufus to install the ISO to USB"
+echo "(Use dd image option)"%    

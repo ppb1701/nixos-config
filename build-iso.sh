@@ -5,7 +5,10 @@ echo "Building NixOS custom ISO..."
 echo ""
 
 # Build the ISO
-nix-build '<nixpkgs/nixos>' -A config.system.build.isoImage -I nixos-config=iso-config.nix
+nix-build '<nixpkgs/nixos>' \
+    -A config.system.build.isoImage \
+    -I nixos-config=./iso-config.nix \
+    -v
 
 # Find the ISO
 ISO_PATH=$(find result/iso -name "*.iso" | head -n 1)
@@ -22,4 +25,4 @@ echo ""
 echo "Copy to Ventoy USB with:"
 echo "sudo cp $ISO_PATH /path/to/ventoy/"
 echo "Use Rufus to install the ISO to USB"
-echo "(Use dd image option)"
+echo "(Use dd image option)"%    
