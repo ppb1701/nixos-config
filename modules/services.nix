@@ -68,11 +68,78 @@
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Nextcloud - Private Cloud
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  services.nextcloud = {
+      enable = true;
+      package = pkgs.nextcloud31;
+  
+      hostName = "nextcloud.home";  # Or use localhost for local-only
+  
+      # Database configuration
+      database.createLocally = true;
+      config = {
+        dbtype = "pgsql";  # PostgreSQL is recommended
+        adminpassFile = "/etc/nixos/private/nextcloud-admin-pass";
+
+      };
+  
+      datadir = "/mnt/nextcloud-data";
+  
+      # Enable HTTPS
+      https = false;
+
+      settings = {
+          "auth.bruteforce.protection.enabled" = false;
+          "ratelimit.protection.enabled" = false;
+          "overwriteprotocol" = "http";
+          trusted_domains = [
+          	"nextcloud.home"
+          	"localhost"          	
+          	"nextcloud.vpn"
+          ];
+          trusted_proxies = [
+                "100.64.0.0/10"  # Entire Tailscale IP range
+              ];
+        };
+
+      # PHP settings for better performance
+      phpOptions = {
+        "opcache.interned_strings_buffer" = "16";
+        "opcache.max_accelerated_files" = "10000";
+        "opcache.memory_consumption" = "128";
+        "opcache.revalidate_freq" = "1";
+        "opcache.fast_shutdown" = "1";
+      };
+  
+      # Auto-update apps
+      autoUpdateApps.enable = true;
+      autoUpdateApps.startAt = "05:00:00";
+    };
+
+    # Nextcloud Prometheus exporter
+    services.prometheus.exporters.nextcloud = {
+      enable = true;
+      url = "http://nextcloud.home";
+      username = "root";
+      passwordFile = "/etc/nixos/private/nextcloud-admin-pass";
+      port = 9205;
+    };
+
+services.nginx.virtualHosts."nextcloud.home".listen = [
+  { addr = "0.0.0.0"; port = 8280; }
+  { addr = "[::]"; port = 8280; }
+];
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # NGINX - REVERSE PROXY FOR CLEAN LOCAL URLS
   # ═══════════════════════════════════════════════════════════════════════════
   services.nginx = {
     enable = true;
 
+    recommendedGzipSettings = true;
+    recommendedOptimisation = true;
     recommendedProxySettings = true;
     recommendedTlsSettings = true;
 
@@ -196,6 +263,37 @@
           targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.nginx.port}" ];
         }];
       }
+       # Nextcloud metrics exporter
+  {
+    job_name = "nextcloud";
+    static_configs = [{
+      targets = [ "localhost:9205" ];
+    }];
+  }
+
+  # Nextcloud HTTP health check
+  {
+    job_name = "nextcloud-http";
+    metrics_path = "/probe";
+    params.module = [ "http_2xx" ];
+    static_configs = [{
+      targets = [ "http://nextcloud.home" ];
+    }];
+    relabel_configs = [
+      {
+        source_labels = [ "__address__" ];
+        target_label = "__param_target";
+      }
+      {
+        source_labels = [ "__param_target" ];
+        target_label = "instance";
+      }
+      {
+        target_label = "__address__";
+        replacement = "localhost:9115";
+      }
+    ];
+  }
       {
         job_name = "prometheus";
         static_configs = [{
@@ -241,7 +339,7 @@
       }
     ];
 
-    # Alert Rules
+  # Alert Rules
     rules = [
       ''
         groups:
@@ -256,7 +354,7 @@
                 annotations:
                   summary: "Service down"
                   description: "A service has been down for more than 2 minutes."
-
+    
               - alert: HTTPProbeFailure
                 expr: probe_success{job="blackbox"} == 0
                 for: 2m
@@ -265,7 +363,7 @@
                 annotations:
                   summary: "HTTP probe failed for {{ $labels.instance }}"
                   description: "{{ $labels.instance }} has been unreachable via HTTP for more than 2 minutes."
-
+    
               - alert: DiskSpaceWarning
                 expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
                 for: 5m
@@ -274,7 +372,7 @@
                 annotations:
                   summary: "Low disk space on root filesystem"
                   description: "Root filesystem has less than 20 percent space remaining."
-
+    
               - alert: DiskSpaceCritical
                 expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
                 for: 2m
@@ -283,7 +381,7 @@
                 annotations:
                   summary: "Critical disk space on root filesystem"
                   description: "Root filesystem has less than 10 percent space remaining."
-
+    
               - alert: HighCPUUsage
                 expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
                 for: 10m
@@ -292,7 +390,7 @@
                 annotations:
                   summary: "High CPU usage detected"
                   description: "CPU usage is above 80 percent for more than 10 minutes."
-
+    
               - alert: HighMemoryUsage
                 expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
                 for: 5m
@@ -301,7 +399,7 @@
                 annotations:
                   summary: "High memory usage detected"
                   description: "Memory usage is above 90 percent."
-
+    
               - alert: NginxHighErrorRate
                 expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05
                 for: 5m
@@ -310,7 +408,26 @@
                 annotations:
                   summary: "High Nginx 5xx error rate"
                   description: "Nginx is returning too many 5xx errors."
-
+    
+          - name: nextcloud
+            rules:
+              - alert: NextcloudDown
+                expr: probe_success{job="nextcloud-http"} == 0
+                for: 5m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "Nextcloud is unreachable"
+                  description: "Nextcloud HTTP check has failed for 5 minutes"
+    
+              - alert: NextcloudDiskSpaceLow
+                expr: (nextcloud_system_disk_free_bytes / nextcloud_system_disk_total_bytes) < 0.1
+                for: 10m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: "Nextcloud disk space low"
+                  description: "Less than 10% free space on Nextcloud data drive"
       ''
     ];
 

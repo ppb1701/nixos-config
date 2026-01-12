@@ -60,16 +60,18 @@
     allowedTCPPorts = [
       2212    # SSH
       53      # DNS (TCP) - AdGuard Home
-      80      # HTTP - Nginx
+      80      # HTTP - Nginx, Nextcloud
       443     # HTTPS
       3000    # AdGuard Home web UI (direct access)
 	  5000    # Note Discovery (direct access)
+	  8280    # Nextcloud
       #8000   # temp httpserver file transfer.  disable for harden normal use.
       8384    # Syncthing web UI (direct access)
       22000   # Syncthing file transfers
       3001    # Grafana
       2586    # ntfy
       9090    # Prometheus (optional - can access via nginx)
+      9205    #Prometheus Nextcloud
     ];
 
     allowedUDPPorts = [

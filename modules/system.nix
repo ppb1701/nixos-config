@@ -119,6 +119,17 @@
     bantime = "1h";
   };
   
+	# Create the mount point
+  systemd.tmpfiles.rules = [
+    "d /mnt/nextcloud-data/data 0750 nextcloud nextcloud -"
+  ];
+
+  # Mount the drive
+  fileSystems."/mnt/nextcloud-data" = {
+    device = "/dev/disk/by-uuid/15d81dda-90c6-4993-9770-92841665e7b5";
+    fsType = "ext4";
+    options = [ "defaults" "nofail" ];  # nofail prevents boot issues if drive is missing
+  };
 
   # Make SSH auto-restart if it crashes and wait for network
   systemd.services.sshd = {
