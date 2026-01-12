@@ -176,6 +176,7 @@
 ║   en         - Edit modules/networking.nix                 ║
 ║   es         - Edit modules/services.nix                   ║
 ║   esy        - Edit modules/system.nix                     ║
+║   em         - Edit modules/monitoring.nix                 ║
 ║   ebios      - Edit modules/boot-bios.nix                  ║
 ║   euefi      - Edit modules/boot-uefi.nix                  ║
 ║   ep         - Edit private/ssh-keys.nix                   ║
@@ -219,6 +220,7 @@
    ec = "sudo micro /etc/nixos/configuration.nix";
    eh = "sudo micro /etc/nixos/home/ppb1701.nix";
    en = "sudo micro /etc/nixos/modules/networking.nix";
+   em = "sudo micro /etc/nixos/modules/monitoring.nix";
    es = "sudo micro /etc/nixos/modules/services.nix";
    esy = "sudo micro /etc/nixos/modules/system.nix";
    ep = "sudo micro /etc/nixos/private/ssh-keys.nix";

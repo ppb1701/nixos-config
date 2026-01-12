@@ -18,6 +18,7 @@ in
     ./hardware-configuration.nix
     "${modulesDir}/networking.nix"
     "${modulesDir}/services.nix"
+    "${modulesDir}/monitoring.nix"
     "${modulesDir}/system.nix"
     "${modulesDir}/boot-uefi.nix"
     <home-manager/nixos>

@@ -25,4 +25,4 @@ echo ""
 echo "Copy to Ventoy USB with:"
 echo "sudo cp $ISO_PATH /path/to/ventoy/"
 echo "Use Rufus to install the ISO to USB"
-echo "(Use dd image option)"%    
+echo "(Use dd image option)"%       
