@@ -22,6 +22,7 @@ in
     "${modulesDir}/networking.nix"
     "${modulesDir}/services.nix"
     "${modulesDir}/system.nix"
+    "${modulesDir}/monitoring.nix"
     "${modulesDir}/boot-bios.nix"  # ← BIOS boot configuration
     <home-manager/nixos>
   ];

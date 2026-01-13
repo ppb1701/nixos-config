@@ -22,6 +22,7 @@ in
     "${modulesDir}/networking.nix"
     "${modulesDir}/services.nix"
     "${modulesDir}/system.nix"
+    "${modulesDir}/monitoring.nix"
     "${modulesDir}/boot-uefi.nix"  # ← UEFI boot configuration
     <home-manager/nixos>
   ];
