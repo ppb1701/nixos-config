@@ -209,11 +209,12 @@
    '';
 
    # System management (with auto-reload!)
-   rebuild = "sudo nixos-rebuild switch && exec zsh";
-   test = "sudo nixos-rebuild test && exec zsh";
+   rebuild = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
+   rebuild-boot = "nh os boot -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
+   test = "nh os test -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
-   cleanup = "sudo nix-collect-garbage -d";
+   cleanup = "nh clean -v all";
    optimize = "sudo nix-store --optimize";
 
    # Config editing
