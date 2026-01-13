@@ -1541,55 +1541,228 @@ PersistentKeepalive = 25
 
 ## File Storage
 
-### Nextcloud
+### Nextcloud (Port 8280) - Already Included!
 
-Your own cloud storage platform (alternative to Syncthing for web-based access).
+**Purpose:** Private cloud storage and collaboration platform
 
-**Note:** This is an alternative/complement to Syncthing. Syncthing is better for peer-to-peer sync; Nextcloud is better for web access and sharing.
+Nextcloud is already configured in `modules/services.nix` and provides a complete self-hosted cloud platform with file sync, sharing, calendar, contacts, and collaborative editing capabilities.
 
-**Create `modules/nextcloud.nix`:**
+**Already Included:** Nextcloud is fully configured with PostgreSQL database, external drive support, and integrated monitoring.
 
-```nix
-{ config, pkgs, ... }:
-
-{
-  services.nextcloud = {
-    enable = true;
-    hostName = "nextcloud.home.lan";
-    https = false;  # Use true with reverse proxy
-
-    config = {
-      adminpassFile = "/etc/nixos/secrets/nextcloud-admin-pass";
-      dbtype = "sqlite";
-    };
-
-    settings = {
-      overwriteprotocol = "http";
-      default_phone_region = "US";
-    };
-  };
-
-  networking.firewall.allowedTCPPorts = [ 80 ];
-}
-```
-
-**Create admin password file:**
-
-```bash
-echo "your-secure-password" | sudo tee /etc/nixos/secrets/nextcloud-admin-pass
-sudo chmod 600 /etc/nixos/secrets/nextcloud-admin-pass
-```
-
-**Access:** http://192.168.1.154
+**Configuration Details:**
+- **Package:** Nextcloud 31 (latest version)
+- **Port:** 8280 (configured to avoid conflict with AdGuard Home on port 3000)
+- **Database:** PostgreSQL with automatic local creation
+- **Data Storage:** /mnt/nextcloud-data (external drive mount required)
+- **Access:** HTTP only (https = false) - designed for local/Tailscale access
+- **Security:** Brute-force and rate limiting disabled for convenience on trusted networks
+- **Integration:** Fully integrated with Prometheus monitoring, Nginx proxy, and Tailscale VPN
 
 **Features:**
+- File sync and sharing with desktop/mobile clients
+- External drive support for large storage capacity
+- Calendar and contacts synchronization
+- Collaborative document editing
+- Photo management and galleries
+- Two-factor authentication support
+- Comprehensive monitoring and alerting
+- Auto-update for apps
 
-- File sync and share
-- Calendar and contacts
-- Photo management
-- Document editing (with OnlyOffice)
-- Mobile apps
-- Desktop clients
+**⚠️ Security Notice:**
+
+This Nextcloud configuration is **intentionally designed for local and Tailscale-only access**:
+- Uses HTTP without encryption
+- Brute-force protection disabled
+- Rate limiting disabled
+- **DO NOT expose to the public internet without proper hardening!**
+
+**Safe for:**
+- Local network access behind firewall
+- Tailscale VPN access (encrypted tunnel)
+- Trusted home/office networks
+
+**Complete Setup Guide:**
+
+See `docs/NEXTCLOUD-SETUP.md` for comprehensive documentation including:
+- External drive setup and formatting
+- Initial configuration and admin password
+- Monitoring integration
+- DNS configuration for clean URLs
+- iOS and desktop app setup
+- Detailed troubleshooting guide
+- Security considerations
+- Common gotchas and lessons learned
+
+**Quick Setup:**
+
+1. **Format and mount external drive** (one-time setup):
+   ```bash
+   # Find your drive
+   lsblk
+
+   # Format (DESTRUCTIVE! Replace /dev/sdX1 with your device)
+   sudo mkfs.ext4 -L nextcloud-data /dev/sdX1
+
+   # Get UUID
+   sudo blkid /dev/sdX1
+   ```
+
+2. **Add mount point to hardware-configuration.nix**:
+   ```nix
+   fileSystems."/mnt/nextcloud-data" = {
+     device = "/dev/disk/by-uuid/YOUR-UUID-HERE";
+     fsType = "ext4";
+     options = [ "nofail" ];
+   };
+   ```
+
+3. **Create admin password file**:
+   ```bash
+   # Generate strong password
+   openssl rand -base64 32 | sudo tee /etc/nixos/private/nextcloud-admin-pass
+
+   # Set permissions (644, not 600! Exporter needs access)
+   sudo chmod 644 /etc/nixos/private/nextcloud-admin-pass
+   ```
+
+4. **Apply configuration**:
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+5. **Configure DNS rewrite in AdGuard Home**:
+   - Open AdGuard Home → Filters → DNS rewrites
+   - Add: `nextcloud.home → YOUR_SERVER_IP`
+
+6. **Access Nextcloud**:
+   - Via DNS: http://nextcloud.home:8280
+   - Direct: http://YOUR_SERVER_IP:8280
+   - Username: `root`
+   - Password: Contents of `/etc/nixos/private/nextcloud-admin-pass`
+
+**Monitoring Integration:**
+
+Nextcloud monitoring is pre-configured in `modules/monitoring.nix`:
+
+- **Nextcloud Exporter** (port 9205): Collects Nextcloud-specific metrics
+  - Active users
+  - File storage usage
+  - Database statistics
+  - App status
+
+- **HTTP Health Check**: Blackbox exporter monitors Nextcloud availability
+
+- **Alert Rules**:
+  - **NextcloudDown**: Triggers if Nextcloud is unreachable for 15 minutes
+  - **NextcloudDiskSpaceLow**: Triggers if less than 10% free space on data drive
+
+**Desktop and Mobile Clients:**
+
+- **Desktop clients:** Available for Windows, macOS, and Linux at https://nextcloud.com/install/#install-clients
+- **Mobile apps:** Available for iOS and Android
+- **Configuration:** Point clients to `http://nextcloud.home:8280` (or use Tailscale hostname)
+
+**iOS App Setup:**
+
+1. Install "Nextcloud - Files & Photos" from App Store
+2. Configure connection:
+   - Via Tailscale: `http://nextcloud.vpn:8280` (recommended)
+   - Via Local Network: `http://nextcloud.home:8280`
+3. Trust the HTTP certificate warning (expected for local HTTP)
+4. Login with root credentials
+
+**Service Management:**
+
+```bash
+# Check Nextcloud service status
+systemctl status phpfpm-nextcloud
+
+# View logs
+journalctl -u phpfpm-nextcloud -f
+
+# Check Nextcloud-specific logs
+sudo tail -f /mnt/nextcloud-data/data/nextcloud.log
+
+# Restart Nextcloud
+sudo systemctl restart phpfpm-nextcloud
+
+# Check PostgreSQL database
+systemctl status postgresql
+
+# Check Nextcloud exporter (monitoring)
+systemctl status prometheus-nextcloud-exporter
+curl http://localhost:9205/metrics
+```
+
+**Accessing via Tailscale:**
+
+Nextcloud is configured to work seamlessly with Tailscale:
+- Trusted domains include `nextcloud.vpn`
+- Trusted proxies include entire Tailscale IP range (100.64.0.0/10)
+- Access from anywhere: `http://YOUR-TAILSCALE-HOSTNAME:8280`
+
+**Common Issues:**
+
+**Port 8280 not accessible:**
+```bash
+# Verify port is listening
+sudo ss -tlnp | grep 8280
+
+# Check Nginx configuration
+sudo nginx -t
+
+# Restart Nginx if needed
+sudo systemctl restart nginx
+```
+
+**PostgreSQL connection errors:**
+```bash
+# Check PostgreSQL status
+systemctl status postgresql
+
+# View PostgreSQL logs
+journalctl -u postgresql -n 50
+```
+
+**Prometheus exporter permission denied:**
+```bash
+# Password file needs 644 permissions (not 600!)
+sudo chmod 644 /etc/nixos/private/nextcloud-admin-pass
+sudo systemctl restart prometheus-nextcloud-exporter
+```
+
+**External drive not mounted:**
+```bash
+# Verify mount
+df -h /mnt/nextcloud-data
+
+# Mount manually if needed
+sudo mount -a
+
+# Check hardware-configuration.nix has correct UUID
+```
+
+**Nextcloud vs. Syncthing:**
+
+Both are included in your configuration - they serve different purposes:
+
+**Use Nextcloud when you want:**
+- Web-based file access and management
+- Calendar and contacts synchronization
+- Collaborative document editing
+- Photo galleries and sharing
+- Mobile/desktop app with selective sync
+- Centralized storage on server
+
+**Use Syncthing when you want:**
+- Peer-to-peer file synchronization
+- Automatic bidirectional sync
+- No central server dependency
+- LAN-optimized transfers
+- Simpler conflict resolution
+- Lower resource usage
+
+**Both can be used together!** Many users sync files between devices with Syncthing and use Nextcloud for web access and sharing.
 
 ### Samba (Network Share)
 

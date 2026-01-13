@@ -63,6 +63,12 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Private device configuration
   - Secure LAN-only sync
   - Web UI accessible via Nginx reverse proxy (http://syncthing.home)
+- **Nextcloud:** Private cloud storage and collaboration platform
+  - File sync and sharing with desktop/mobile clients
+  - External drive support for large storage
+  - Calendar, contacts, and collaborative editing
+  - Integrated monitoring and alerting
+  - Web UI accessible at http://nextcloud.home:8280
 - **Nginx:** Reverse proxy for clean local URLs
   - Access services via friendly names (adguard.home, syncthing.home, grafana.home, notes.home, etc.)
   - No need to remember port numbers
@@ -82,7 +88,7 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
 
 - **Prometheus:** Metrics collection and time-series database
   - 30-day retention, system and service metrics
-  - Node, Nginx, and Blackbox exporters
+  - Node, Nginx, Nextcloud, and Blackbox exporters
   - Syncthing metrics monitoring
   - HTTP health checks for services
   - Web UI at http://prometheus.home
@@ -103,7 +109,9 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - 24-hour message cache
   - Web UI and mobile apps at http://ntfy.home
 
-See `docs/SERVICES.md` for detailed setup and configuration.
+**Note:** Monitoring configuration is now in its own module (`modules/monitoring.nix`) for better organization.
+
+See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and configuration.
 
 ### Desktop Environment
 
@@ -115,7 +123,8 @@ See `docs/SERVICES.md` for detailed setup and configuration.
 ### Infrastructure Features
 
 - **Modular Configuration:** Services organized in logical modules
-  - `services.nix` - All service configurations
+  - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, NoteDiscovery)
+  - `monitoring.nix` - Complete monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
   - `networking.nix` - Network and firewall settings
   - `system.nix` - System packages, users, desktop
   - `boot-bios.nix` / `boot-uefi.nix` - Boot configurations
@@ -123,7 +132,7 @@ See `docs/SERVICES.md` for detailed setup and configuration.
   - `private/` directory gitignored for security
   - `private-example/` provides templates for required config files
   - Automated installer copies examples to `private/` as starting point
-  - Files: `syncthing-secrets.nix`, `ssh-keys.nix`, `secrets.nix`, `alertmanager.env`, `notediscovery-config.*`
+  - Files: `syncthing-secrets.nix`, `ssh-keys.nix`, `secrets.nix`, `alertmanager.env`, `notediscovery-config.*`, `nextcloud-admin-pass`
 - **Home Manager:** User environment management
   - Custom ZSH configuration with starship prompt
   - Extensive shell aliases for system management
@@ -371,7 +380,7 @@ adguard.home       → 192.168.1.154
 syncthing.home     → 192.168.1.154
 ```
 
-If you've also set up monitoring and knowledge management services, add:
+If you've also set up monitoring, knowledge management, and cloud storage services, add:
 
 ```
 grafana.home       → 192.168.1.154
@@ -379,6 +388,7 @@ prometheus.home    → 192.168.1.154
 alertmanager.home  → 192.168.1.154
 ntfy.home          → 192.168.1.154
 notes.home         → 192.168.1.154
+nextcloud.home     → 192.168.1.154
 ```
 
 **How it works:**
@@ -392,21 +402,16 @@ notes.home         → 192.168.1.154
 Add to `/etc/hosts` on each client device:
 
 ```
-192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home
+192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home nextcloud.home
 ```
 
 #### Other Services
 
-See `docs/SERVICES.md` for guides on:
+See documentation for detailed guides:
 
-- Comprehensive monitoring and alerting stack (Prometheus, Grafana, Alertmanager, Loki, ntfy)
-- Alternative monitoring solutions (Netdata, Uptime Kuma)
-- Remote access options (Tailscale already included, WireGuard alternative)
-- File storage (Nextcloud, Samba)
-- Media services (Jellyfin, Navidrome)
-- Home automation (Home Assistant)
-- Development tools (Gitea)
-- Security services (Fail2ban, Vaultwarden)
+- `docs/SERVICES.md` - Comprehensive monitoring and alerting stack, alternative services, and integrations
+- `docs/NEXTCLOUD-SETUP.md` - Complete Nextcloud setup, troubleshooting, and iOS app configuration
+- Additional service options: Netdata, Uptime Kuma, WireGuard, Samba, Jellyfin, Navidrome, Home Assistant, Gitea, Fail2ban, Vaultwarden
 
 ## System Maintenance
 
@@ -456,7 +461,8 @@ nixos-config/
 ├── install-nixos.sh               # Automated installation script
 ├── setup.config.sh                # Configuration extraction script
 ├── modules/                       # Service modules
-│   ├── services.nix              # All services (AdGuard, Syncthing, Tailscale, Nginx)
+│   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, etc.)
+│   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
 │   ├── networking.nix            # Network & firewall configuration
 │   ├── system.nix                # System packages, users, desktop, SSH
 │   ├── boot-bios.nix             # BIOS/GRUB boot configuration
@@ -470,7 +476,8 @@ nixos-config/
 │   ├── secrets.nix               # Service passwords (Grafana, etc.)
 │   ├── alertmanager.env          # SMTP credentials for email alerts
 │   ├── notediscovery-config.nix  # NoteDiscovery notes path
-│   └── notediscovery-config.yaml # NoteDiscovery app configuration
+│   ├── notediscovery-config.yaml # NoteDiscovery app configuration
+│   └── nextcloud-admin-pass      # Nextcloud admin password
 ├── private-example/               # Example templates for private config
 │   ├── README.md                 # Instructions for private config
 │   ├── secrets.nix               # Example secrets file
@@ -479,10 +486,12 @@ nixos-config/
 │   ├── syncthing-secrets.nix     # Example Syncthing config
 │   ├── syncthing-devices.nix     # Example Syncthing devices
 │   ├── notediscovery-config.nix  # Example NoteDiscovery path config
-│   └── notediscovery-config.yaml # Example NoteDiscovery app config
+│   ├── notediscovery-config.yaml # Example NoteDiscovery app config
+│   └── nextcloud-admin-pass      # Example Nextcloud password file
 ├── docs/                          # Documentation
 │   ├── CUSTOMIZATION.md          # How to customize services
 │   ├── SERVICES.md               # Additional services guide
+│   ├── NEXTCLOUD-SETUP.md        # Complete Nextcloud setup and troubleshooting
 │   ├── TROUBLESHOOTING.md        # Common issues & solutions
 │   └── BUILDING-PUBLIC-ISOS.md   # ISO building guide
 ├── iso-config.nix                 # Custom ISO configuration
