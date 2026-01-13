@@ -1,5 +1,8 @@
 { config, pkgs, ... }:
 
+let
+  secrets = import /etc/nixos/private/secrets.nix;
+in
 {
   # ═══════════════════════════════════════════════════════════════════════════
   # PROMETHEUS - METRICS COLLECTION
@@ -37,12 +40,13 @@
           modules:
             http_2xx:
               prober: http
-              timeout: 5s
+              timeout: 10s
               http:
                 valid_status_codes: [200]
                 method: GET
                 follow_redirects: true
                 preferred_ip_protocol: "ip4"
+                ip_protocol_fallback: false
         '';
       };
     };
@@ -68,10 +72,11 @@
       }
       {
         job_name = "nextcloud-http";
+        scrape_interval = "30s";
         metrics_path = "/probe";
         params.module = [ "http_2xx" ];
         static_configs = [{
-          targets = [ "http://nextcloud.home:8280" ];
+          targets = [ "http://${secrets.tailscaleIP}:8280" ];
         }];
         relabel_configs = [
           {
@@ -206,7 +211,7 @@
             rules:
               - alert: NextcloudDown
                 expr: probe_success{job="nextcloud-http"} == 0
-                for: 15m
+                for: 20m
                 labels:
                   severity: critical
                 annotations:

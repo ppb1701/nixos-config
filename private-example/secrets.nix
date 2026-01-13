@@ -3,5 +3,6 @@
 # Generate strong passwords with: openssl rand -base64 32
 
 {
+  tailscaleIP = "Your_Tailscale_IP";
   grafanaPassword = "CHANGE_ME_TO_STRONG_PASSWORD";
 }
