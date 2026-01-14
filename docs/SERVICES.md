@@ -2125,35 +2125,142 @@ sudo fail2ban-client status sshd
 
 ### Vaultwarden
 
-Self-hosted password manager (Bitwarden compatible).
+Self-hosted password manager (Bitwarden compatible) with Tailscale Funnel for secure remote access.
 
-**Create `modules/vaultwarden.nix`:**
+**Status:** ✅ Implemented in `modules/services.nix` (lines 72-94)
+
+**Features:**
+- Bitwarden-compatible API (works with official Bitwarden clients)
+- Secure HTTPS access via Tailscale Funnel
+- Admin panel with token authentication
+- 2FA support
+- Automatic backups to `/var/local/vaultwarden/backup`
+- No firewall ports opened (local access only via Tailscale)
+
+**Configuration:**
+
+Vaultwarden is already configured in `modules/services.nix`:
 
 ```nix
-{ config, pkgs, ... }:
+services.vaultwarden = {
+  enable = true;
+  backupDir = "/var/local/vaultwarden/backup";
 
-{
-  services.vaultwarden = {
-    enable = true;
-    config = {
-      ROCKET_ADDRESS = "0.0.0.0";
-      ROCKET_PORT = 8222;
-      SIGNUPS_ALLOWED = false;  # Disable after creating account
-    };
+  config = {
+    ROCKET_ADDRESS = "127.0.0.1";  # Only listen locally
+    ROCKET_PORT = 8222;
+
+    # Uses your Tailscale hostname from secrets
+    DOMAIN = "https://${secrets.tailscaleHostname}";
+
+    # Disable signups after creating accounts
+    SIGNUPS_ALLOWED = false;
+    INVITATIONS_ALLOWED = false;
   };
 
-  networking.firewall.allowedTCPPorts = [ 8222 ];
-}
+  # Admin token loaded from environment file
+  environmentFile = "/etc/nixos/private/vaultwarden.env";
+};
 ```
-
-**Access:** http://192.168.1.154:8222
 
 **Setup:**
 
-1. Create account (first user is admin)
-2. Set `SIGNUPS_ALLOWED = false` and rebuild
-3. Install Bitwarden clients on devices
-4. Point to your server URL
+1. **Generate admin token:**
+   ```bash
+   nix-shell -p openssl --run "openssl rand -base64 48"
+   ```
+
+2. **Create `/etc/nixos/private/vaultwarden.env`:**
+   ```bash
+   ADMIN_TOKEN='your_generated_token_here'
+   ```
+
+3. **Add Tailscale hostname to `/etc/nixos/private/secrets.nix`:**
+   ```nix
+   {
+     grafanaPassword = "your-password";
+     tailscaleIP = "100.x.y.z";
+     tailscaleHostname = "nixos.tailXXXXXX.ts.net";  # Your Tailscale hostname
+   }
+   ```
+
+   Find your hostname: `tailscale status` or https://login.tailscale.com/admin/machines
+
+4. **Rebuild:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+5. **Enable Tailscale Funnel:**
+
+   a. Add Funnel capability to Tailscale ACL (https://login.tailscale.com/admin/settings):
+   ```json
+   "nodeAttrs": [
+     {
+       "target": ["autogroup:member"],
+       "attr": ["funnel"]
+     }
+   ]
+   ```
+
+   b. Start Funnel:
+   ```bash
+   sudo tailscale funnel --bg --https=443 http://127.0.0.1:8222
+   ```
+
+6. **Create account and configure:**
+   - Access: https://nixos.tailXXXXXX.ts.net
+   - Create your account (first account is admin)
+   - Enable 2FA in Account Settings
+   - Go to admin panel: https://nixos.tailXXXXXX.ts.net/admin
+   - Login with admin token
+   - Disable "Allow new signups"
+
+**Access:**
+- **Web Vault:** https://nixos.tailXXXXXX.ts.net
+- **Admin Panel:** https://nixos.tailXXXXXX.ts.net/admin
+- **Mobile/Desktop:** Download official Bitwarden apps from https://bitwarden.com/download/
+  - Set server URL to your Tailscale hostname
+  - Login with your credentials
+
+**Security:**
+- Only accessible via Tailscale (no firewall ports opened)
+- HTTPS with automatic certificates via Tailscale Funnel
+- Admin panel protected by token
+- Supports 2FA (TOTP, U2F, Duo)
+- Signups disabled after initial account creation
+
+**Backups:**
+- Automatic daily backups to `/var/local/vaultwarden/backup`
+- Manual backup location: `/var/lib/bitwarden_rs/`
+
+**Monitoring:**
+- HTTP health checks configured in `modules/monitoring.nix`
+- Alerts if service is down
+
+**Troubleshooting:**
+
+Check service status:
+```bash
+systemctl status vaultwarden
+journalctl -u vaultwarden -f
+```
+
+Check Tailscale Funnel status:
+```bash
+tailscale funnel status
+```
+
+Verify Tailscale hostname is set correctly:
+```bash
+grep tailscaleHostname /etc/nixos/private/secrets.nix
+```
+
+**Clients:**
+- Browser extensions: Chrome, Firefox, Safari, Edge
+- Desktop apps: Windows, macOS, Linux
+- Mobile apps: iOS, Android
+- CLI: `bw` command-line tool
 
 ## Tips for Adding Services
 

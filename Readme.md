@@ -69,6 +69,12 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Calendar, contacts, and collaborative editing
   - Integrated monitoring and alerting
   - Web UI accessible at http://nextcloud.home:8280
+- **Vaultwarden:** Self-hosted password manager (Bitwarden compatible)
+  - Secure password vault with 2FA support
+  - Accessible remotely via Tailscale Funnel (HTTPS)
+  - Automatic HTTPS certificates
+  - Bitwarden client compatibility (desktop, mobile, browser extensions)
+  - Accessible at https://nixos.tailXXXXXX.ts.net (your Tailscale hostname)
 - **Nginx:** Reverse proxy for clean local URLs
   - Access services via friendly names (adguard.home, syncthing.home, grafana.home, notes.home, etc.)
   - No need to remember port numbers
@@ -365,6 +371,110 @@ Create required private configuration files:
 
 > **Note:** The `private/` directory is gitignored to protect your device IDs and password.
 
+#### Vaultwarden (Password Manager)
+
+**Prerequisites:**
+
+Vaultwarden requires Tailscale for remote access via Tailscale Funnel, providing secure HTTPS access to your password manager from anywhere.
+
+**Setup:**
+
+1. **Generate admin token:**
+   ```bash
+   nix-shell -p openssl --run "openssl rand -base64 48"
+   ```
+
+2. **Create environment file:**
+   ```bash
+   sudo mkdir -p /etc/nixos/private
+   sudo micro /etc/nixos/private/vaultwarden.env
+   ```
+
+   Add content:
+   ```bash
+   ADMIN_TOKEN='your_generated_token_here'
+   ```
+
+3. **Add Tailscale hostname to secrets:**
+   ```bash
+   sudo micro /etc/nixos/private/secrets.nix
+   ```
+
+   Update to include your Tailscale hostname:
+   ```nix
+   {
+     grafanaPassword = "your-secure-password-here";
+     tailscaleIP = "100.x.y.z";  # Your Tailscale IP
+     tailscaleHostname = "nixos.tailXXXXXX.ts.net";  # Your Tailscale hostname
+   }
+   ```
+
+   **Finding your Tailscale hostname:**
+   - Run: `tailscale status`
+   - Or visit: https://login.tailscale.com/admin/machines
+   - Look for your machine's hostname (e.g., nixos.taild891fe71.ts.net)
+
+4. **Rebuild system:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+5. **Enable Tailscale Funnel:**
+
+   a. Enable Funnel in your Tailscale account:
+   - Go to https://login.tailscale.com/admin/settings
+   - Under "Access Controls", click "Edit"
+   - Add the following to your ACL configuration:
+     ```json
+     "nodeAttrs": [
+       {
+         "target": ["autogroup:member"],
+         "attr": ["funnel"]
+       }
+     ]
+     ```
+   - Click "Save"
+
+   b. Start Tailscale Funnel:
+   ```bash
+   sudo tailscale funnel --bg --https=443 http://127.0.0.1:8222
+   ```
+
+6. **Access Vaultwarden and complete setup:**
+   - Open: https://nixos.tailXXXXXX.ts.net (use your Tailscale hostname)
+   - Create your account (first account is admin)
+   - Enable 2FA in Account Settings for security
+   - Disable signups in admin panel (/admin):
+     - Go to https://nixos.tailXXXXXX.ts.net/admin
+     - Login with your admin token
+     - Disable "Allow new signups"
+     - Save settings
+
+7. **Optional - Rebuild to disable signups permanently:**
+
+   Edit `/etc/nixos/modules/services.nix` and ensure:
+   ```nix
+   SIGNUPS_ALLOWED = false;
+   ```
+
+   Then rebuild: `sudo nixos-rebuild switch`
+
+**Using Vaultwarden:**
+
+- **Web Vault:** https://nixos.tailXXXXXX.ts.net
+- **Admin Panel:** https://nixos.tailXXXXXX.ts.net/admin
+- **Mobile/Desktop Apps:** Use official Bitwarden apps
+  - Download from: https://bitwarden.com/download/
+  - Configure server URL: https://nixos.tailXXXXXX.ts.net
+  - Login with your credentials
+
+> **Security Notes:**
+> - Vaultwarden only listens on localhost (127.0.0.1) for security
+> - Access is only available via Tailscale Funnel with automatic HTTPS
+> - Enable 2FA immediately after creating your account
+> - Store your admin token securely - you'll need it for admin panel access
+> - Disable signups after creating your accounts to prevent unauthorized access
+
 #### DNS Configuration for Clean URLs
 
 To access services via clean URLs (adguard.home, syncthing.home, etc.), configure DNS rewrites in AdGuard Home:
@@ -473,16 +583,18 @@ nixos-config/
 │   ├── syncthing-secrets.nix     # Syncthing settings and device IDs
 │   ├── syncthing-devices.nix     # Symlink to syncthing-secrets.nix
 │   ├── ssh-keys.nix              # SSH authorized keys
-│   ├── secrets.nix               # Service passwords (Grafana, etc.)
+│   ├── secrets.nix               # Service passwords (Grafana, Tailscale hostname, etc.)
 │   ├── alertmanager.env          # SMTP credentials for email alerts
+│   ├── vaultwarden.env           # Vaultwarden admin token
 │   ├── notediscovery-config.nix  # NoteDiscovery notes path
 │   ├── notediscovery-config.yaml # NoteDiscovery app configuration
 │   └── nextcloud-admin-pass      # Nextcloud admin password
 ├── private-example/               # Example templates for private config
 │   ├── README.md                 # Instructions for private config
-│   ├── secrets.nix               # Example secrets file
+│   ├── secrets.nix               # Example secrets file (Grafana, Tailscale)
 │   ├── ssh-keys.nix              # Example SSH keys file
 │   ├── alertmanager.env          # Example SMTP config
+│   ├── vaultwarden.env           # Example Vaultwarden admin token
 │   ├── syncthing-secrets.nix     # Example Syncthing config
 │   ├── syncthing-devices.nix     # Example Syncthing devices
 │   ├── notediscovery-config.nix  # Example NoteDiscovery path config
@@ -592,8 +704,9 @@ private/
 ├── syncthing-secrets.nix          # Syncthing GUI password and device IDs (gitignored)
 ├── syncthing-devices.nix          # Symlink to syncthing-secrets.nix (gitignored)
 ├── ssh-keys.nix                   # SSH authorized keys (gitignored)
-├── secrets.nix                    # Grafana admin password (gitignored)
+├── secrets.nix                    # Grafana password, Tailscale hostname (gitignored)
 ├── alertmanager.env               # SMTP credentials for alerts (gitignored)
+├── vaultwarden.env                # Vaultwarden admin token (gitignored)
 ├── notediscovery-config.nix       # NoteDiscovery notes path (gitignored)
 ├── notediscovery-config.yaml      # NoteDiscovery app config (gitignored)
 ```
@@ -606,8 +719,9 @@ The `private-example/` directory contains template files showing the required st
 
 - Syncthing device IDs and GUI password (syncthing-secrets.nix)
 - SSH authorized keys (ssh-keys.nix)
-- Grafana admin password (secrets.nix)
+- Grafana admin password and Tailscale hostname (secrets.nix)
 - Email SMTP credentials for alerting (alertmanager.env)
+- Vaultwarden admin token (vaultwarden.env)
 - NoteDiscovery configuration and password hash (notediscovery-config.nix/yaml)
 - Any other sensitive credentials
 
@@ -639,6 +753,9 @@ sudo micro /etc/nixos/private/secrets.nix
 # Create alertmanager.env (SMTP credentials)
 sudo micro /etc/nixos/private/alertmanager.env
 
+# Create vaultwarden.env (admin token)
+sudo micro /etc/nixos/private/vaultwarden.env
+
 # Create NoteDiscovery config (optional)
 sudo micro /etc/nixos/private/notediscovery-config.nix
 sudo micro /etc/nixos/private/notediscovery-config.yaml
@@ -652,12 +769,17 @@ sudo micro /etc/nixos/private/notediscovery-config.yaml
 # Example secrets.nix content:
 {
   grafanaPassword = "your-secure-password-here";
+  tailscaleIP = "100.x.y.z";
+  tailscaleHostname = "nixos.tailXXXXXX.ts.net";
 }
 
 # Example alertmanager.env content:
 SMTP_USERNAME=your-email@fastmail.com
 SMTP_PASSWORD=your-app-password
 EMAIL_TO=alerts@your-domain.com
+
+# Example vaultwarden.env content:
+ADMIN_TOKEN='your_generated_token_here'
 ```
 
 ### Building Public ISOs
