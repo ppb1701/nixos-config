@@ -123,6 +123,8 @@
 	# Create the mount point
   systemd.tmpfiles.rules = [
     "d /mnt/nextcloud-data/data 0750 nextcloud nextcloud -"
+    "d /var/local/vaultwarden 0755 vaultwarden vaultwarden -"
+    "d /var/local/vaultwarden/backup 0755 vaultwarden vaultwarden -"
   ];
 
   # Mount the drive

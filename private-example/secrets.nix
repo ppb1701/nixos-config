@@ -4,5 +4,6 @@
 
 {
   tailscaleIP = "Your_Tailscale_IP";
+  tailscaleHostname = "Your_Tailscale_Hostname";
   grafanaPassword = "CHANGE_ME_TO_STRONG_PASSWORD";
 }

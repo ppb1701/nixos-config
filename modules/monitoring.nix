@@ -118,6 +118,7 @@ in
             "http://127.0.0.1:5000"      # NoteDiscovery
             "http://127.0.0.1:8384"      # Syncthing GUI
             "http://127.0.0.1:3000"      # AdGuard Home
+            "https://${secrets.tailscaleHostname}"  # Vaultwarden
           ];
         }];
         relabel_configs = [
@@ -206,6 +207,17 @@ in
                 annotations:
                   summary: "High Nginx 5xx error rate"
                   description: "Nginx is returning too many 5xx errors."
+                  
+          - name: vaultwarden
+            rules:
+              - alert: VaultwardenDown
+                expr: probe_success{instance="https://${secrets.tailscaleHostname}"} == 0
+                for: 20m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "Vaultwarden password manager is down"
+                  description: "Vaultwarden has been unreachable for 20 minutes"
 
           - name: nextcloud
             rules:

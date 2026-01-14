@@ -1,5 +1,7 @@
 { config, pkgs, ... }:
-
+let
+  secrets = import /etc/nixos/private/secrets.nix;
+in
 {
   # ═══════════════════════════════════════════════════════════════════════════
   # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
@@ -67,6 +69,32 @@
     useRoutingFeatures = "server";
   };
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # VAULTWARDEN (Password Manager)
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.vaultwarden = {
+    enable = true;
+    backupDir = "/var/local/vaultwarden/backup";
+  
+    config = {
+      ROCKET_ADDRESS = "127.0.0.1";  # Only listen locally
+      ROCKET_PORT = 8222;
+  
+      # We'll set this after we get your Tailscale hostname
+      DOMAIN = "https://${secrets.tailscaleHostname}";  # Reference from secrets
+  
+      # Allow signups initially so you can create your account
+      SIGNUPS_ALLOWED = false;
+  
+      # Disable invitations for now (can enable later if needed)
+      INVITATIONS_ALLOWED = false;
+    };
+  
+    # Admin token and other secrets
+    environmentFile = "/etc/nixos/private/vaultwarden.env";
+  };
+ 
+  
   # ═══════════════════════════════════════════════════════════════════════════
   # NEXTCLOUD - PRIVATE CLOUD
   # ═══════════════════════════════════════════════════════════════════════════
