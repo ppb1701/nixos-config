@@ -214,7 +214,7 @@
    test = "nh os test -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
-   cleanup = "nh clean -v all";
+   cleanup = "nh clean -v all --keep 3";
    optimize = "sudo nix-store --optimize";
 
    # Config editing
