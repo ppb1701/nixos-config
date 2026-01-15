@@ -950,7 +950,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more detailed solutio
 Want to discuss? Have a suggestion?
 
 - **Mastodon:** [@ppb1701@ppb.social](https://ppb.social/@ppb1701)
-- **Blog Comments:** https://blog.ppb1701.com
+- **Blog:** https://blog.ppb1701.com
 
 ## License
 
