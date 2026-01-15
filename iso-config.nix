@@ -49,16 +49,18 @@
   environment.etc."nixos/private/ssh-keys.nix".source = ./private/ssh-keys.nix;
   environment.etc."nixos/private/secrets.nix".source = ./private/secrets.nix;
   environment.etc."nixos/private/alertmanager.env".source = ./private/alertmanager.env;
+  environment.etc."nixos/private/vaultwarden.env".source = ./private/vaultwarden.env;
   environment.etc."nixos/private/syncthing-devices.nix".source = ./private/syncthing-devices.nix;
   environment.etc."nixos/private/syncthing-secrets.nix".source = ./private/syncthing-secrets.nix;
   environment.etc."nixos/private/notediscovery-config.nix".source = ./private/notediscovery-config.nix;
   environment.etc."nixos/private/notediscovery-config.yaml".source = ./private/notediscovery-config.yaml;
   environment.etc."nixos/private/nextcloud-admin-pass".source = ./private/nextcloud-admin-pass;
-  
-  
+
+
   # Copy private-example directory files (these become the default private files in the ISO)
   environment.etc."nixos/private-example/README.md".source = ./private-example/README.md;
   environment.etc."nixos/private-example/secrets.nix".source = ./private-example/secrets.nix;
+  environment.etc."nixos/private-example/vaultwarden.env".source = ./private-example/vaultwarden.env;
   environment.etc."nixos/private-example/ssh-keys.nix".source = ./private-example/ssh-keys.nix;
   environment.etc."nixos/private-example/alertmanager.env".source = ./private-example/alertmanager.env;
   environment.etc."nixos/private-example/syncthing-devices.nix".source =   ./private-example/syncthing-devices.nix;
