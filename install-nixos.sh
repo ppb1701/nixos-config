@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
+# Error handler
+error_exit() {
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ ERROR: $1"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 1
+}
+
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo "NixOS Automated Installation"
 echo "═══════════════════════════════════════════════════════════════════════════"
@@ -12,17 +20,11 @@ echo "⚠️  WARNING: Installation will ERASE ALL DATA on the selected disk!"
 echo ""
 read -p "Enter disk to install to (e.g., nvme0n1, sda) or Ctrl+C to cancel: " DISK
 
-if [ -z "$DISK" ]; then
-    echo "Error: No disk specified"
-    exit 1
-fi
+[ -z "$DISK" ] && error_exit "No disk specified"
 
 DISK_PATH="/dev/$DISK"
 
-if [ ! -b "$DISK_PATH" ]; then
-    echo "Error: $DISK_PATH is not a valid block device"
-    exit 1
-fi
+[ ! -b "$DISK_PATH" ] && error_exit "$DISK_PATH is not a valid block device"
 
 echo ""
 echo "Select bootloader type:"
@@ -44,8 +46,7 @@ elif [ "$BOOT_CHOICE" = "3" ]; then
     echo "Exiting to live environment..."
     exit 0
 else
-    echo "Invalid choice"
-    exit 1
+    error_exit "Invalid choice"
 fi
 
 echo ""
@@ -64,26 +65,24 @@ else
     PART_PREFIX="${DISK}"
 fi
 
-wipefs -af "$DISK_PATH"
+wipefs -af "$DISK_PATH" || error_exit "Failed to wipe disk"
 
 if [ "$USE_UEFI" = true ]; then
-    # UEFI partitioning
     BOOT_PART="/dev/${PART_PREFIX}1"
     ROOT_PART="/dev/${PART_PREFIX}2"
 
-    parted "$DISK_PATH" --script mklabel gpt
-    parted "$DISK_PATH" --script mkpart ESP fat32 1MiB 512MiB
-    parted "$DISK_PATH" --script set 1 esp on
-    parted "$DISK_PATH" --script mkpart primary 512MiB 100%
+    parted "$DISK_PATH" --script mklabel gpt || error_exit "Failed to create GPT partition table"
+    parted "$DISK_PATH" --script mkpart ESP fat32 1MiB 512MiB || error_exit "Failed to create EFI partition"
+    parted "$DISK_PATH" --script set 1 esp on || error_exit "Failed to set ESP flag"
+    parted "$DISK_PATH" --script mkpart primary 512MiB 100% || error_exit "Failed to create root partition"
 else
-    # BIOS partitioning
     BOOT_PART="/dev/${PART_PREFIX}1"
     ROOT_PART="/dev/${PART_PREFIX}2"
 
-    parted "$DISK_PATH" --script mklabel msdos
-    parted "$DISK_PATH" --script mkpart primary ext4 1MiB 512MiB
-    parted "$DISK_PATH" --script set 1 boot on
-    parted "$DISK_PATH" --script mkpart primary 512MiB 100%
+    parted "$DISK_PATH" --script mklabel msdos || error_exit "Failed to create MBR partition table"
+    parted "$DISK_PATH" --script mkpart primary ext4 1MiB 512MiB || error_exit "Failed to create boot partition"
+    parted "$DISK_PATH" --script set 1 boot on || error_exit "Failed to set boot flag"
+    parted "$DISK_PATH" --script mkpart primary 512MiB 100% || error_exit "Failed to create root partition"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -92,31 +91,22 @@ fi
 echo "Formatting..."
 
 if [ "$USE_UEFI" = true ]; then
-    mkfs.fat -F 32 -n boot "$BOOT_PART"
+    mkfs.fat -F 32 -n boot "$BOOT_PART" || error_exit "Failed to format EFI partition"
 else
-    mkfs.ext4 -F -L boot "$BOOT_PART"
+    mkfs.ext4 -F -L boot "$BOOT_PART" || error_exit "Failed to format boot partition"
 fi
 
-mkfs.ext4 -F -L nixos "$ROOT_PART"
+mkfs.ext4 -F -L nixos "$ROOT_PART" || error_exit "Failed to format root partition"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MOUNTING
 # ═══════════════════════════════════════════════════════════════════════════
 echo "Mounting..."
 
-mount "$ROOT_PART" /mnt
-if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to mount root partition"
-    exit 1
-fi
+mount "$ROOT_PART" /mnt || error_exit "Failed to mount root partition"
 
-mkdir -p /mnt/boot
-mount "$BOOT_PART" /mnt/boot
-if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to mount boot partition"
-    umount /mnt
-    exit 1
-fi
+mkdir -p /mnt/boot || error_exit "Failed to create boot directory"
+mount "$BOOT_PART" /mnt/boot || error_exit "Failed to mount boot partition"
 
 echo "Mounts verified:"
 mount | grep /mnt
@@ -126,15 +116,13 @@ mount | grep /mnt
 # ═══════════════════════════════════════════════════════════════════════════
 echo "Copying configuration..."
 
-mkdir -p /mnt/etc/nixos/modules
-mkdir -p /mnt/etc/nixos/private
-mkdir -p /mnt/etc/nixos/home
+mkdir -p /mnt/etc/nixos/modules || error_exit "Failed to create modules directory"
+mkdir -p /mnt/etc/nixos/private || error_exit "Failed to create private directory"
+mkdir -p /mnt/etc/nixos/home || error_exit "Failed to create home directory"
+mkdir -p /mnt/etc/nixos/private-example || error_exit "Failed to create private-example directory"
 
 # Copy the selected configuration as configuration.nix (FOLLOW SYMLINKS WITH -L)
-cp -L /etc/nixos/$CONFIG_FILE /mnt/etc/nixos/configuration.nix || {
-    echo "Error: Failed to copy $CONFIG_FILE"
-    exit 1
-}
+cp -L /etc/nixos/$CONFIG_FILE /mnt/etc/nixos/configuration.nix || error_exit "Failed to copy $CONFIG_FILE"
 
 # Copy both config variants for future use (FOLLOW SYMLINKS WITH -L)
 cp -L /etc/nixos/configuration-bios.nix /mnt/etc/nixos/ 2>/dev/null || true
@@ -142,31 +130,43 @@ cp -L /etc/nixos/configuration-uefi.nix /mnt/etc/nixos/ 2>/dev/null || true
 cp -L /etc/nixos/iso-config.nix /mnt/etc/nixos/ 2>/dev/null || true
 
 if [ -d /etc/nixos/modules ] && [ "$(ls -A /etc/nixos/modules)" ]; then
-    cp -rL /etc/nixos/modules/* /mnt/etc/nixos/modules/
-    echo "Copied modules directory"
+    cp -rL /etc/nixos/modules/* /mnt/etc/nixos/modules/ || error_exit "Failed to copy modules directory"
+    echo "✓ Copied modules directory"
 else
-    echo "No modules directory found - creating empty"
+    echo "⚠ No modules directory found - creating empty"
 fi
 
 # Copy private directory - prioritize existing backup, fall back to examples
 if [ -d /etc/nixos/private ] && [ "$(ls -A /etc/nixos/private)" ]; then
-    # User has backed up their private configs - use those
-    cp -rL /etc/nixos/private/* /mnt/etc/nixos/private/
-    echo "Copied private directory (from backup)"
+    cp -rL /etc/nixos/private/* /mnt/etc/nixos/private/ || error_exit "Failed to copy private directory"
+    echo "✓ Copied private directory (from backup)"
 elif [ -d /etc/nixos/private-example ] && [ "$(ls -A /etc/nixos/private-example)" ]; then
-    # No backup found - use example files
-    cp -rL /etc/nixos/private-example/* /mnt/etc/nixos/private/
-    echo "Copied private-example files to private directory (fresh install)"
+    cp -rL /etc/nixos/private-example/* /mnt/etc/nixos/private/ || error_exit "Failed to copy private-example to private directory"
+    echo "✓ Copied private-example files to private directory (fresh install)"
 else
-    # Neither exists - create empty directory
-    echo "No private or private-example directory found - creating empty private directory"
+    echo "⚠ No private or private-example directory found - creating empty private directory"
+fi
+
+# Ensure private-example directory exists for reference
+if [ -d /etc/nixos/private-example ] && [ "$(ls -A /etc/nixos/private-example)" ]; then
+    echo "Copying private-example templates for reference..."
+    cp -rL /etc/nixos/private-example/* /mnt/etc/nixos/private-example/ || error_exit "Failed to copy private-example templates"
+
+    # Verify the copy worked
+    if [ ! -f /mnt/etc/nixos/private-example/README.md ]; then
+        error_exit "private-example templates missing after copy (README.md not found)"
+    fi
+
+    echo "✓ private-example templates copied successfully"
+else
+    echo "⚠ No private-example directory found in ISO"
 fi
 
 if [ -d /etc/nixos/home ] && [ "$(ls -A /etc/nixos/home)" ]; then
-    cp -rL /etc/nixos/home/* /mnt/etc/nixos/home/
-    echo "Copied home directory"
+    cp -rL /etc/nixos/home/* /mnt/etc/nixos/home/ || error_exit "Failed to copy home directory"
+    echo "✓ Copied home directory"
 else
-    echo "No home directory found - creating empty"
+    echo "⚠ No home directory found - creating empty"
 fi
 
 cp -L /etc/nixos/build-iso.sh /mnt/etc/nixos/ 2>/dev/null || true
@@ -177,7 +177,7 @@ cp -L /etc/nixos/.gitignore /mnt/etc/nixos/ 2>/dev/null || true
 # GENERATE HARDWARE CONFIG
 # ═══════════════════════════════════════════════════════════════════════════
 echo "Generating hardware configuration..."
-nixos-generate-config --root /mnt
+nixos-generate-config --root /mnt || error_exit "Failed to generate hardware configuration"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # INSTALL
@@ -186,7 +186,7 @@ echo ""
 echo "Installing NixOS (this may take several minutes)..."
 echo ""
 
-nixos-install --no-root-passwd
+nixos-install --no-root-passwd || error_exit "NixOS installation failed"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DONE
@@ -384,7 +384,7 @@ echo "To disable Vaultwarden:"
 echo "  Set services.vaultwarden.enable = false in services.nix"
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "Build complete! Review the output above."
+echo "✅ Installation complete! Review the output above."
 echo "Press any key to reboot..."
 echo "═══════════════════════════════════════════════════════════════"
 read -n 1 -s -r
