@@ -21,6 +21,7 @@ in
     "${modulesDir}/monitoring.nix"
     "${modulesDir}/system.nix"
     "${modulesDir}/boot-uefi.nix"
+    "${modulesDir}/backups.nix"
     <home-manager/nixos>
   ];
 

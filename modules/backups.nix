@@ -1,0 +1,116 @@
+{ config, pkgs, lib, ... }:
+
+let
+  secrets = import ../private/secrets.nix;
+in
+{
+  # Restic backup jobs
+  services.restic.backups = {
+
+    # Vaultwarden backup (hourly)
+    vaultwarden = {
+      repository = "/var/local/backups/restic";
+      passwordFile = "/etc/nixos/private/restic-password";
+
+      paths = [
+        "/var/local/vaultwarden"
+      ];
+
+      # Stop Vaultwarden before backup (SQLite safety)
+      backupPrepareCommand = ''
+        ${pkgs.systemd}/bin/systemctl stop vaultwarden.service
+      '';
+
+      # Restart after backup
+      backupCleanupCommand = ''
+        ${pkgs.systemd}/bin/systemctl start vaultwarden.service
+      '';
+
+      # Hourly backups
+      timerConfig = {
+        OnCalendar = "hourly";
+        Persistent = true;
+      };
+
+      # Retention policy
+      pruneOpts = [
+        "--keep-last 24"      # Last 24 hours
+        "--keep-daily 7"      # Last 7 days
+        "--keep-weekly 4"     # Last 4 weeks
+        "--keep-monthly 12"   # Last 12 months
+      ];
+    };
+
+    # Nextcloud database backup (daily)
+    nextcloud-db = {
+      repository = "/var/local/backups/restic";
+      passwordFile = "/etc/nixos/private/restic-password";
+
+      paths = [
+        "/var/backup/nextcloud-db"
+      ];
+
+      # Create database dump before backup
+      backupPrepareCommand = ''
+        mkdir -p /var/backup/nextcloud-db
+        ${pkgs.sudo}/bin/sudo -u nextcloud ${pkgs.postgresql}/bin/pg_dump nextcloud > /var/backup/nextcloud-db/nextcloud.sql
+      '';
+
+      # Daily at 2 AM
+      timerConfig = {
+        OnCalendar = "02:15";
+        Persistent = true;
+      };
+
+      pruneOpts = [
+        "--keep-daily 7"
+        "--keep-weekly 4"
+        "--keep-monthly 12"
+      ];
+    };
+
+    # Private configs backup (daily)
+    private-configs = {
+      repository = "/var/local/backups/restic";
+      passwordFile = "/etc/nixos/private/restic-password";
+
+      paths = [
+        "/etc/nixos/private"
+      ];
+
+      # Daily at 3 AM
+      timerConfig = {
+        OnCalendar = "03:15";
+        Persistent = true;
+      };
+
+      pruneOpts = [
+        "--keep-daily 7"
+        "--keep-weekly 4"
+        "--keep-monthly 12"
+      ];
+    };
+  };
+
+  systemd.services = {
+      restic-backups-vaultwarden.postStart = ''
+        chmod -R a+rX /var/local/backups/restic/
+      '';
+  
+      restic-backups-nextcloud-db.postStart = ''
+        chmod -R a+rX /var/local/backups/restic/
+      '';
+  
+      restic-backups-private-configs.postStart = ''
+        chmod -R a+rX /var/local/backups/restic/
+      '';
+    };
+
+  # Create backup directories
+  systemd.tmpfiles.rules = [
+    "d /var/local/backups 0755 root root -"
+    "d /var/local/backups/restic 0700 root root -"
+    "d /var/backup 0755 root root -"
+    "d /var/backup/nextcloud-db 0755 nextcloud nextcloud -"
+  ];
+}

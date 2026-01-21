@@ -125,6 +125,7 @@
     "d /mnt/nextcloud-data/data 0750 nextcloud nextcloud -"
     "d /var/local/vaultwarden 0755 vaultwarden vaultwarden -"
     "d /var/local/vaultwarden/backup 0755 vaultwarden vaultwarden -"
+    "d /var/local/backups2 0755 ppb1701 users -"
   ];
 
   # Mount the drive
