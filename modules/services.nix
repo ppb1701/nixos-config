@@ -306,6 +306,7 @@ in
   users.users.notediscovery = {
     isSystemUser = true;
     group = "notediscovery";
+    extraGroups = [ "syncthing" "users" ];
     home = "/var/lib/notediscovery";
     createHome = true;
   };
