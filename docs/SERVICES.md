@@ -35,22 +35,36 @@ Syncthing provides continuous file synchronization across multiple devices. It w
 
 #### Complete Setup Guide
 
-**1. Create Private Configuration**
+**1. Create Secrets Configuration**
 
 ```bash
-# Create the private secrets file
+# Create the secrets file (for monitoring/prometheus)
 sudo micro /etc/nixos/private/syncthing-secrets.nix
 ```
 
-**2. Add Settings to syncthing-secrets.nix**
-
+Add content:
 ```nix
 {
-  gui = {
-    user = "ppb1701";
+  guiPassword = "your-strong-password-here";
+
+  # For Prometheus metrics scraping
+  prometheus_auth = {
+    username = "ppb1701";
     password = "your-strong-password-here";
   };
+}
+```
 
+**2. Create Devices Configuration**
+
+```bash
+# Create the devices/folders file
+sudo micro /etc/nixos/private/syncthing-devices.nix
+```
+
+Add content:
+```nix
+{
   devices = {
     # Your devices will go here
   };
@@ -77,20 +91,10 @@ After installation:
 
 **4. Configure Devices and Folders**
 
-Continue editing `private/syncthing-secrets.nix`:
+Edit `private/syncthing-devices.nix`:
 
 ```nix
 {
-  gui = {
-    user = "ppb1701";
-    password = "your-strong-password-here";
-  };
-
-  prometheus_auth = {
-    username = "ppb1701";  # Should match gui.user
-    password = "your-strong-password-here";  # Should match gui.password
-  };
-
   devices = {
     "windows-desktop" = {
       id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
@@ -2345,6 +2349,145 @@ services.netdata.enable = true;
 - Gitea
 - Netdata
 - Tailscale
+
+## Backup System
+
+### Overview
+
+The backup system uses **Restic** for encrypted, deduplicated backups with automatic retention policies. Configuration is in `modules/backups.nix`.
+
+**Backup Repository:** `/var/local/backups/restic`
+**Password File:** `/etc/nixos/private/restic-password`
+
+### Backup Jobs
+
+#### 1. Vaultwarden Backup (Hourly)
+
+- **What:** `/var/local/vaultwarden` (password vault data)
+- **When:** Every hour
+- **Safety:** Automatically stops/starts Vaultwarden service for SQLite consistency
+- **Retention:** Last 24 hours + 7 days + 4 weeks + 12 months
+
+#### 2. Nextcloud Database Backup (Daily)
+
+- **What:** PostgreSQL database dump to `/var/backup/nextcloud-db`
+- **When:** 2:15 AM daily
+- **Safety:** Uses `pg_dump` to create consistent database snapshot
+- **Retention:** 7 days + 4 weeks + 12 months
+
+#### 3. Private Configs Backup (Daily)
+
+- **What:** `/etc/nixos/private` (secrets, passwords, device IDs)
+- **When:** 3:15 AM daily
+- **Retention:** 7 days + 4 weeks + 12 months
+
+### Setup
+
+1. **Create Restic password file:**
+   ```bash
+   # Generate a strong password
+   openssl rand -base64 32 | sudo tee /etc/nixos/private/restic-password
+   sudo chmod 600 /etc/nixos/private/restic-password
+   ```
+
+2. **Rebuild system:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+3. **Initialize repository (first time only):**
+   ```bash
+   sudo restic -r /var/local/backups/restic init --password-file /etc/nixos/private/restic-password
+   ```
+
+### Managing Backups
+
+**Check backup status:**
+```bash
+# List all snapshots
+sudo restic -r /var/local/backups/restic snapshots --password-file /etc/nixos/private/restic-password
+
+# Check backup service status
+systemctl status restic-backups-vaultwarden.timer
+systemctl status restic-backups-nextcloud-db.timer
+systemctl status restic-backups-private-configs.timer
+
+# View backup logs
+journalctl -u restic-backups-vaultwarden -f
+journalctl -u restic-backups-nextcloud-db -f
+```
+
+**Manual backup:**
+```bash
+# Trigger immediate backup
+sudo systemctl start restic-backups-vaultwarden
+
+# Run all backups
+sudo systemctl start restic-backups-vaultwarden
+sudo systemctl start restic-backups-nextcloud-db
+sudo systemctl start restic-backups-private-configs
+```
+
+**Restore from backup:**
+```bash
+# List available snapshots
+sudo restic -r /var/local/backups/restic snapshots --password-file /etc/nixos/private/restic-password
+
+# Restore specific snapshot to a directory
+sudo restic -r /var/local/backups/restic restore SNAPSHOT_ID --target /tmp/restore --password-file /etc/nixos/private/restic-password
+
+# Restore latest snapshot
+sudo restic -r /var/local/backups/restic restore latest --target /tmp/restore --password-file /etc/nixos/private/restic-password
+```
+
+**Check repository health:**
+```bash
+sudo restic -r /var/local/backups/restic check --password-file /etc/nixos/private/restic-password
+```
+
+### Nextcloud Data Synchronization
+
+For complete disaster recovery, Nextcloud **user data** (files, photos, etc.) should also be replicated to a secondary server. This is separate from database backups.
+
+**Initial Sync (one-time):**
+```bash
+rsync -avP -e "ssh -p 2212" /mnt/nextcloud-data/data/ ppb1701@192.168.50.218:/mnt/nextcloud-data/nextcloud/
+```
+
+**Ongoing Sync via Syncthing:**
+
+Configure Syncthing to continuously sync the Nextcloud data directory between servers. This provides:
+- Real-time replication of user files
+- Automatic conflict resolution
+- Bidirectional sync capability
+- LAN-optimized transfers
+
+Add to `/etc/nixos/private/syncthing-secrets.nix`:
+```nix
+folders = {
+  "Nextcloud-Data" = {
+    path = "/mnt/nextcloud-data/data";
+    devices = [ "backup-server" ];
+    ignorePerms = true;
+  };
+};
+```
+
+### Backup Best Practices
+
+1. **Test restores regularly** - Verify backups work before you need them
+2. **Store password securely** - The restic-password file is critical for recovery
+3. **Monitor backup logs** - Set up alerts for failed backups
+4. **Off-site backups** - Consider syncing `/var/local/backups/restic` to remote storage
+5. **Document recovery** - Keep written procedures for disaster recovery
+
+### Shell Aliases
+
+```bash
+# Quick backup status check (add to home/ppb1701.nix if desired)
+alias backup-status="systemctl list-timers 'restic-*'"
+alias backup-list="sudo restic -r /var/local/backups/restic snapshots --password-file /etc/nixos/private/restic-password"
+```
 
 ## Getting Help
 

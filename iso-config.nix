@@ -41,7 +41,7 @@
   environment.etc."nixos/modules/services.nix".source = ./modules/services.nix;
   environment.etc."nixos/modules/monitoring.nix".source = ./modules/monitoring.nix;
   environment.etc."nixos/modules/system.nix".source = ./modules/system.nix;
-  environment.etc/"nixos/modules/backups.nix".source = ./modules/backups.nix
+  environment.etc."nixos/modules/backups.nix".source = ./modules/backups.nix;
 
   # Copy home directory files
   environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;

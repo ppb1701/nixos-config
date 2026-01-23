@@ -90,6 +90,22 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Integrates with Syncthing for note synchronization
   - Password-protected with configurable authentication
 
+### Backup System
+
+- **Restic Backups:** Automated, encrypted backup system
+  - **Vaultwarden:** Hourly backups with service stop/start for SQLite safety
+  - **Nextcloud Database:** Daily PostgreSQL dumps at 2:15 AM
+  - **Private Configs:** Daily backup of `/etc/nixos/private` at 3:15 AM
+  - Retention policy: 24 hourly, 7 daily, 4 weekly, 12 monthly
+  - All backups stored in `/var/local/backups/restic`
+
+- **Nextcloud Data Synchronization:** For syncing Nextcloud actual data between servers
+  - Initial sync via rsync: `rsync -avP -e "ssh -p 2212" /mnt/nextcloud-data/data/ user@host:/mnt/nextcloud-data/nextcloud/`
+  - Ongoing sync via Syncthing for continuous replication
+  - Provides disaster recovery capability to secondary server
+
+See `docs/SERVICES.md` for detailed backup configuration and restore procedures.
+
 ### Monitoring and Alerting Stack
 
 - **Prometheus:** Metrics collection and time-series database
@@ -315,24 +331,31 @@ Create required private configuration files:
 
 **Setup:**
 
-1. Create your private configuration:
+1. Create secrets configuration (for monitoring):
    ```bash
    sudo micro /etc/nixos/private/syncthing-secrets.nix
    ```
 
-2. Add your GUI password and device configuration:
+   Add content:
    ```nix
    {
-     gui = {
-       user = "ppb1701";
-       password = "your-strong-password-here";
-     };
+     guiPassword = "your-strong-password-here";
 
      prometheus_auth = {
-       username = "ppb1701";  # Should match gui.user
-       password = "your-strong-password-here";  # Should match gui.password
+       username = "ppb1701";
+       password = "your-strong-password-here";
      };
+   }
+   ```
 
+2. Create devices configuration:
+   ```bash
+   sudo micro /etc/nixos/private/syncthing-devices.nix
+   ```
+
+   Add content:
+   ```nix
+   {
      devices = {
        "my-laptop" = {
          id = "ABCDEFG-HIJKLMN-OPQRSTU-VWXYZAB-CDEFGHI-JKLMNOP-QRSTUVW-XYZABCD";
@@ -348,7 +371,7 @@ Create required private configuration files:
    }
    ```
 
-   **Note:** The `prometheus_auth` section allows Prometheus to scrape Syncthing metrics for monitoring.
+   **Note:** The `prometheus_auth` in syncthing-secrets.nix allows Prometheus to scrape Syncthing metrics for monitoring.
 
 3. Get device IDs from each device:
    - Install Syncthing on the device
@@ -356,7 +379,7 @@ Create required private configuration files:
    - Go to Actions → Show ID
    - Copy the full device ID
 
-4. Add more devices and folders as needed to `syncthing-secrets.nix`
+4. Add more devices and folders as needed to `syncthing-devices.nix`
 
 5. Rebuild:
    ```bash
@@ -573,6 +596,7 @@ nixos-config/
 ├── modules/                       # Service modules
 │   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, etc.)
 │   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
+│   ├── backups.nix               # Restic backup configuration (Vaultwarden, Nextcloud DB, private configs)
 │   ├── networking.nix            # Network & firewall configuration
 │   ├── system.nix                # System packages, users, desktop, SSH
 │   ├── boot-bios.nix             # BIOS/GRUB boot configuration
@@ -588,7 +612,8 @@ nixos-config/
 │   ├── vaultwarden.env           # Vaultwarden admin token
 │   ├── notediscovery-config.nix  # NoteDiscovery notes path
 │   ├── notediscovery-config.yaml # NoteDiscovery app configuration
-│   └── nextcloud-admin-pass      # Nextcloud admin password
+│   ├── nextcloud-admin-pass      # Nextcloud admin password
+│   └── restic-password           # Restic backup encryption password
 ├── private-example/               # Example templates for private config
 │   ├── README.md                 # Instructions for private config
 │   ├── secrets.nix               # Example secrets file (Grafana, Tailscale)
@@ -599,7 +624,8 @@ nixos-config/
 │   ├── syncthing-devices.nix     # Example Syncthing devices
 │   ├── notediscovery-config.nix  # Example NoteDiscovery path config
 │   ├── notediscovery-config.yaml # Example NoteDiscovery app config
-│   └── nextcloud-admin-pass      # Example Nextcloud password file
+│   ├── nextcloud-admin-pass      # Example Nextcloud password file
+│   └── restic-password           # Example Restic backup password file
 ├── docs/                          # Documentation
 │   ├── CUSTOMIZATION.md          # How to customize services
 │   ├── SERVICES.md               # Additional services guide
