@@ -41,6 +41,7 @@
   environment.etc."nixos/modules/services.nix".source = ./modules/services.nix;
   environment.etc."nixos/modules/monitoring.nix".source = ./modules/monitoring.nix;
   environment.etc."nixos/modules/system.nix".source = ./modules/system.nix;
+  environment.etc/"nixos/modules/backups.nix".source = ./modules/backups.nix
 
   # Copy home directory files
   environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;
@@ -55,6 +56,7 @@
   environment.etc."nixos/private/notediscovery-config.nix".source = ./private/notediscovery-config.nix;
   environment.etc."nixos/private/notediscovery-config.yaml".source = ./private/notediscovery-config.yaml;
   environment.etc."nixos/private/nextcloud-admin-pass".source = ./private/nextcloud-admin-pass;
+  environment.etc."nixos/private/restic-password".source = ./private/restic-password;
 
 
   # Copy private-example directory files (these become the default private files in the ISO)
@@ -68,7 +70,7 @@
   environment.etc."nixos/private-example/notediscovery-config.nix".source = ./private-example/notediscovery-config.nix;
   environment.etc."nixos/private-example/notediscovery-config.yaml".source = ./private-example/notediscovery-config.yaml;
   environment.etc."nixos/private-example/nextcloud-admin-pass".source = ./private-example/nextcloud-admin-pass;
-
+  environment.etc."nixos/private-example/restic-password".source = ./private-example/restic-password;
   # ═══════════════════════════════════════════════════════════════════════════
   # AUTO-RUN INSTALLER ON BOOT
   # ═══════════════════════════════════════════════════════════════════════════
@@ -97,6 +99,7 @@
   networking.wireless.enable = false;
   networking.networkmanager.enable = true;
 
+  nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
     vim
     git
@@ -108,6 +111,8 @@
     micro
     jq
     dig
+    nh
+    vivaldi
   ];
 
   services.openssh = {
@@ -117,3 +122,4 @@
 
   system.stateVersion = "25.05";
 }
+

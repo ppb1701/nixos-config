@@ -173,6 +173,7 @@
 ║ CONFIG EDITING:                                            ║
 ║   ec         - Edit configuration.nix                      ║
 ║   eh         - Edit home/ppb1701.nix                       ║
+║   ebkup      - Edit modules/backups.nix                    ║
 ║   en         - Edit modules/networking.nix                 ║
 ║   es         - Edit modules/services.nix                   ║
 ║   esy        - Edit modules/system.nix                     ║
@@ -214,12 +215,13 @@
    test = "nh os test -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
-   cleanup = "nh clean -v all --keep 3";
+   cleanup = "nh clean -v all";
    optimize = "sudo nix-store --optimize";
 
    # Config editing
    ec = "sudo micro /etc/nixos/configuration.nix";
    eh = "sudo micro /etc/nixos/home/ppb1701.nix";
+   ebkup = "sudo mivro /etc/nixos/modules/backups.nix";
    en = "sudo micro /etc/nixos/modules/networking.nix";
    em = "sudo micro /etc/nixos/modules/monitoring.nix";
    es = "sudo micro /etc/nixos/modules/services.nix";
@@ -268,7 +270,7 @@
    q = "exit";
  };
 
-  
+
 
     initContent = ''
       # Starship prompt initialization
