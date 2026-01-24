@@ -72,6 +72,7 @@
       2586    # ntfy
       9090    # Prometheus (optional - can access via nginx)
       9205    #Prometheus Nextcloud
+      #8888    #SearX
     ];
 
     allowedUDPPorts = [

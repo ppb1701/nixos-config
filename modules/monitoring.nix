@@ -53,6 +53,12 @@ in
 
     scrapeConfigs = [
       {
+        job_name = "searx";
+        static_configs = [{
+          targets = [ "localhost:8888" ];
+        }];
+      }
+      {
         job_name = "node";
         static_configs = [{
           targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];

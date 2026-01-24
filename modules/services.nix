@@ -95,6 +95,40 @@ in
     environmentFile = "/etc/nixos/private/vaultwarden.env";
   };
  
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SearX - Self-Hosted Search
+    # ═══════════════════════════════════════════════════════════════════════════
+    services.searx = {
+      enable = true;
+  
+      settings = {
+        general = {
+          instance_name = "ppb1701 Search";
+          contact_url = false;
+        };
+  
+        server = {
+          port = 8888;
+          bind_address = "0.0.0.0";
+          secret_key = secrets.searxSecret;
+          #base_url = "http://search.home";
+          image_proxy = true;
+        };
+  
+        search = {
+          safe_search = 0;
+          autocomplete = "google";
+          default_lang = "en";
+        };
+  
+        ui = {
+          infinite_scroll = true;
+          theme_args.simple_style = "dark";
+		};
+      };
+    }; 
+   
+  
   
   # ═══════════════════════════════════════════════════════════════════════════
   # NEXTCLOUD - PRIVATE CLOUD
@@ -163,6 +197,28 @@ in
     '';
 
     virtualHosts = {
+      "search.home" = {
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:8888";
+          proxyWebsockets = true;
+          extraConfig = ''
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          '';
+        };
+      };
+      "search.vpn" = {
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:8888";
+          proxyWebsockets = true;
+          extraConfig = ''
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          '';
+        };
+      };
       "ntfy.home" = {
         locations."/" = {
           proxyPass = "http://localhost:2586";
