@@ -68,7 +68,7 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - External drive support for large storage
   - Calendar, contacts, and collaborative editing
   - Integrated monitoring and alerting
-  - Web UI accessible at http://nextcloud.home:8280
+  - Web UI accessible at http://cloud.home
 - **Vaultwarden:** Self-hosted password manager (Bitwarden compatible)
   - Secure password vault with 2FA support
   - Accessible remotely via Tailscale Funnel (HTTPS)
@@ -89,12 +89,22 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Web UI accessible via Nginx reverse proxy (http://notes.home)
   - Integrates with Syncthing for note synchronization
   - Password-protected with configurable authentication
+- **SearX:** Self-hosted metasearch engine
+  - Privacy-respecting search aggregating multiple engines
+  - Dark theme, autocomplete, image proxy
+  - Web UI accessible at http://search.home
+- **Linkwarden:** Self-hosted bookmark manager
+  - Save, organize, and archive bookmarks
+  - Automatic page archiving with screenshots
+  - Browser extensions available
+  - Web UI accessible at http://links.home
 
 ### Backup System
 
 - **Restic Backups:** Automated, encrypted backup system
   - **Vaultwarden:** Hourly backups with service stop/start for SQLite safety
   - **Nextcloud Database:** Daily PostgreSQL dumps at 2:15 AM
+  - **Linkwarden:** Daily PostgreSQL dumps + archived pages at 2:40 AM
   - **Private Configs:** Daily backup of `/etc/nixos/private` at 3:15 AM
   - Retention policy: 24 hourly, 7 daily, 4 weekly, 12 monthly
   - All backups stored in `/var/local/backups/restic`
@@ -145,8 +155,10 @@ See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and conf
 ### Infrastructure Features
 
 - **Modular Configuration:** Services organized in logical modules
-  - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, NoteDiscovery)
+  - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, NoteDiscovery)
+  - `nginx-virtualhosts.nix` - Nginx reverse proxy virtual hosts (split out for readability)
   - `monitoring.nix` - Complete monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
+  - `backups.nix` - Restic backup configuration
   - `networking.nix` - Network and firewall settings
   - `system.nix` - System packages, users, desktop
   - `boot-bios.nix` / `boot-uefi.nix` - Boot configurations
@@ -511,6 +523,8 @@ To access services via clean URLs (adguard.home, syncthing.home, etc.), configur
 ```
 adguard.home       → 192.168.1.154
 syncthing.home     → 192.168.1.154
+search.home        → 192.168.1.154
+links.home         → 192.168.1.154
 ```
 
 If you've also set up monitoring, knowledge management, and cloud storage services, add:
@@ -521,12 +535,13 @@ prometheus.home    → 192.168.1.154
 alertmanager.home  → 192.168.1.154
 ntfy.home          → 192.168.1.154
 notes.home         → 192.168.1.154
-nextcloud.home     → 192.168.1.154
+cloud.home         → 192.168.1.154
 ```
 
 **How it works:**
 - AdGuard Home acts as your network's DNS server
 - DNS rewrites map `.home` domains to your server's IP
+- Split DNS: `.home` domains resolve on both LAN and Tailscale networks
 - Works automatically for all devices using AdGuard Home as DNS
 - No need to edit /etc/hosts on every device
 
@@ -535,7 +550,7 @@ nextcloud.home     → 192.168.1.154
 Add to `/etc/hosts` on each client device:
 
 ```
-192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home nextcloud.home
+192.168.1.154  adguard.home syncthing.home search.home links.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home cloud.home
 ```
 
 #### Other Services
@@ -594,9 +609,10 @@ nixos-config/
 ├── install-nixos.sh               # Automated installation script
 ├── setup.config.sh                # Configuration extraction script
 ├── modules/                       # Service modules
-│   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, etc.)
+│   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, etc.)
+│   ├── nginx-virtualhosts.nix    # Nginx reverse proxy virtual hosts (split out for readability)
 │   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
-│   ├── backups.nix               # Restic backup configuration (Vaultwarden, Nextcloud DB, private configs)
+│   ├── backups.nix               # Restic backup configuration (Vaultwarden, Nextcloud DB, Linkwarden, private configs)
 │   ├── networking.nix            # Network & firewall configuration
 │   ├── system.nix                # System packages, users, desktop, SSH
 │   ├── boot-bios.nix             # BIOS/GRUB boot configuration
@@ -607,7 +623,7 @@ nixos-config/
 │   ├── syncthing-secrets.nix     # Syncthing settings and device IDs
 │   ├── syncthing-devices.nix     # Symlink to syncthing-secrets.nix
 │   ├── ssh-keys.nix              # SSH authorized keys
-│   ├── secrets.nix               # Service passwords (Grafana, Tailscale hostname, etc.)
+│   ├── secrets.nix               # Service passwords (Grafana, Tailscale, SearX, Linkwarden, etc.)
 │   ├── alertmanager.env          # SMTP credentials for email alerts
 │   ├── vaultwarden.env           # Vaultwarden admin token
 │   ├── notediscovery-config.nix  # NoteDiscovery notes path
@@ -797,6 +813,9 @@ sudo micro /etc/nixos/private/notediscovery-config.yaml
   grafanaPassword = "your-secure-password-here";
   tailscaleIP = "100.x.y.z";
   tailscaleHostname = "nixos.tailXXXXXX.ts.net";
+  searxSecret = "your-random-secret-key";  # openssl rand -hex 32
+  linkwardenDbPassword = "your-db-password";  # openssl rand -hex 32
+  linkwardenNextAuthSecret = "your-nextauth-secret";  # openssl rand -base64 32
 }
 
 # Example alertmanager.env content:

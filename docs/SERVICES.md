@@ -13,6 +13,8 @@ Your configuration already includes these services (configured in `modules/servi
 - **Nginx** - Reverse proxy for clean local URLs (ports 80, 443)
 - **Prometheus + Grafana + Alertmanager + Loki** - Complete monitoring and alerting stack
 - **ntfy** - Self-hosted push notifications (port 2586)
+- **SearX** - Self-hosted metasearch engine (port 8888)
+- **Linkwarden** - Self-hosted bookmark manager (port 8230)
 
 Plus desktop environment (LXQT), SSH server, and system utilities.
 
@@ -585,6 +587,332 @@ git pull
 ./venv/bin/pip install -r requirements.txt --upgrade
 exit
 sudo systemctl restart notediscovery
+```
+
+## Search
+
+### SearX (Port 8888)
+
+**Purpose:** Self-hosted metasearch engine that aggregates results from multiple search engines
+
+SearX provides a privacy-respecting search experience by querying multiple search engines and presenting aggregated results without tracking.
+
+**Already Included:** SearX is configured in `modules/services.nix`.
+
+**Features:**
+- Aggregates results from Google, Bing, DuckDuckGo, and many others
+- No tracking or profiling
+- Dark theme enabled by default
+- Autocomplete suggestions via Google
+- Image proxy for privacy
+- Infinite scroll enabled
+
+**Configuration (in `modules/services.nix`):**
+
+```nix
+services.searx = {
+  enable = true;
+
+  settings = {
+    general = {
+      instance_name = "ppb1701 Search";
+      contact_url = false;
+    };
+
+    server = {
+      port = 8888;
+      bind_address = "0.0.0.0";
+      secret_key = secrets.searxSecret;
+      image_proxy = true;
+    };
+
+    search = {
+      safe_search = 0;
+      autocomplete = "google";
+      default_lang = "en";
+    };
+
+    ui = {
+      infinite_scroll = true;
+      theme_args.simple_style = "dark";
+    };
+  };
+};
+```
+
+**Setup:**
+
+1. **Add secret key to `/etc/nixos/private/secrets.nix`:**
+   ```nix
+   {
+     searxSecret = "your-random-secret-key-here";
+     # ... other secrets
+   }
+   ```
+
+   Generate a random key:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Configure DNS rewrite in AdGuard Home:**
+   - Open AdGuard Home → Filters → DNS rewrites
+   - Add: `search.home → YOUR_SERVER_IP`
+
+3. **Rebuild:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+**Access:**
+- Via Nginx: http://search.home
+- Direct: http://YOUR_SERVER_IP:8888
+
+**Customization:**
+
+You can customize search engines in the SearX web UI:
+1. Go to http://search.home
+2. Click the gear icon (Preferences)
+3. Select/deselect search engines
+4. Configure categories (general, images, videos, etc.)
+
+**Service Management:**
+
+```bash
+# Check status
+systemctl status searx
+
+# View logs
+journalctl -u searx -f
+
+# Restart service
+sudo systemctl restart searx
+```
+
+## Bookmarks
+
+### Linkwarden (Port 8230)
+
+**Purpose:** Self-hosted collaborative bookmark manager with archiving capabilities
+
+Linkwarden allows you to save, organize, and archive bookmarks with full-page screenshots and preserved copies of web pages.
+
+**Already Included:** Linkwarden is configured in `modules/services.nix` with PostgreSQL database.
+
+**Features:**
+- Save and organize bookmarks with tags and collections
+- Automatic archiving of web pages (screenshots and full HTML)
+- Collaborative collections with sharing capabilities
+- Full-text search across all bookmarks
+- Browser extensions available
+- Import/export functionality
+- Dark mode support
+
+**Configuration (in `modules/services.nix`):**
+
+```nix
+systemd.services.linkwarden = {
+  description = "Linkwarden Bookmark Manager";
+  after = [ "network.target" "postgresql.service" ];
+  wantedBy = [ "multi-user.target" ];
+
+  environment = {
+    DATABASE_URL = "postgresql://linkwarden:PASSWORD@localhost:5432/linkwarden";
+    NEXTAUTH_URL = "http://links.home";
+    NEXTAUTH_SECRET = secrets.linkwardenNextAuthSecret;
+    NEXT_PUBLIC_DISABLE_REGISTRATION = "true";
+    STORAGE_FOLDER = "/var/lib/linkwarden/data";
+    LINKWARDEN_HOST = "0.0.0.0";
+    LINKWARDEN_PORT = "8230";
+    NODE_ENV = "production";
+  };
+
+  serviceConfig = {
+    Type = "simple";
+    User = "linkwarden";
+    Group = "linkwarden";
+    WorkingDirectory = "/var/lib/linkwarden";
+    ExecStart = "${pkgs.linkwarden}/bin/linkwarden";
+    Restart = "on-failure";
+    RestartSec = "10s";
+  };
+};
+```
+
+**Setup:**
+
+1. **Add secrets to `/etc/nixos/private/secrets.nix`:**
+   ```nix
+   {
+     linkwardenDbPassword = "your-database-password";
+     linkwardenNextAuthSecret = "your-nextauth-secret";
+     # ... other secrets
+   }
+   ```
+
+   Generate secrets:
+   ```bash
+   # Database password
+   openssl rand -base64 32
+
+   # NextAuth secret
+   openssl rand -base64 32
+   ```
+
+2. **Set PostgreSQL password** (after first rebuild):
+   ```bash
+   sudo -u postgres psql -c "ALTER USER linkwarden PASSWORD 'your-database-password';"
+   ```
+
+3. **Configure DNS rewrite in AdGuard Home:**
+   - Open AdGuard Home → Filters → DNS rewrites
+   - Add: `links.home → YOUR_SERVER_IP`
+
+4. **Rebuild:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+**Access:**
+- Via Nginx: http://links.home
+- Direct: http://YOUR_SERVER_IP:8230
+
+**First-time Setup:**
+
+1. Access http://links.home
+2. Create your admin account (registration is disabled after first account by default)
+3. Install browser extension from https://linkwarden.app
+
+**Browser Extensions:**
+- Chrome/Edge: Available in Chrome Web Store
+- Firefox: Available in Firefox Add-ons
+- Configure extension to use `http://links.home` as server URL
+
+**Service Management:**
+
+```bash
+# Check status
+systemctl status linkwarden
+
+# View logs
+journalctl -u linkwarden -f
+
+# Restart service
+sudo systemctl restart linkwarden
+```
+
+**Data Storage:**
+- **Database:** PostgreSQL at `localhost:5432/linkwarden`
+- **Archived pages:** `/var/lib/linkwarden/data`
+
+**Backups:**
+
+Linkwarden is automatically backed up daily at 2:40 AM (see Backup System section):
+- PostgreSQL database dump
+- Archived pages, screenshots, and uploads
+
+**Troubleshooting:**
+
+**Port already in use (EADDRINUSE on port 3000):**
+
+Linkwarden uses `LINKWARDEN_PORT` (not `PORT`) to configure its listening port. If you see errors about port 3000 being in use, ensure your environment uses the correct variable name:
+
+```nix
+environment = {
+  LINKWARDEN_PORT = "8230";  # NOT "PORT"
+  LINKWARDEN_HOST = "0.0.0.0";  # Listen on all interfaces
+  # ...
+};
+```
+
+**502 Bad Gateway from nginx:**
+
+If nginx returns a bad gateway, Linkwarden may be binding to IPv6 only. Add `LINKWARDEN_HOST = "0.0.0.0"` to your environment to listen on all interfaces (IPv4 and IPv6).
+
+**Login not working (silently fails):**
+
+The `NEXTAUTH_URL` must exactly match how you access Linkwarden. If you access via `http://links.home`, set:
+
+```nix
+NEXTAUTH_URL = "http://links.home";  # Must match actual access URL
+```
+
+Not `https://` or a different domain - NextAuth validates this strictly.
+
+**PostgreSQL authentication failed:**
+
+If using TCP connection (`localhost:5432`), you need to set the PostgreSQL password:
+
+```bash
+sudo -u postgres psql -c "ALTER USER linkwarden WITH PASSWORD 'your-password';"
+```
+
+For socket connection (simpler, no password needed):
+```nix
+DATABASE_URL = "postgresql:///linkwarden?host=/run/postgresql";
+```
+
+**Cache directory errors:**
+
+If you see "ENOENT: no such file or directory, mkdir '/var/cache/linkwarden'":
+
+```bash
+sudo mkdir -p /var/cache/linkwarden
+sudo chown linkwarden:linkwarden /var/cache/linkwarden
+```
+
+**Database migrations not running:**
+
+The NixOS Linkwarden package runs Prisma migrations automatically on startup. Check logs for migration errors:
+
+```bash
+sudo journalctl -u linkwarden.service -n 100 | grep -i prisma
+```
+
+**Special characters in database password:**
+
+If your password contains `/`, `+`, or `=` (common in base64), it will break the DATABASE_URL parsing. Either:
+- URL-encode special characters (`/` → `%2F`, `+` → `%2B`, `=` → `%3D`)
+- Generate a hex password instead (no special characters):
+  ```bash
+  nix-shell -p openssl --run "openssl rand -hex 32"
+  ```
+
+**Database or user doesn't exist:**
+
+If `ensureDatabases` didn't create the database, create manually:
+
+```bash
+# Create database and user
+sudo -u postgres createdb linkwarden
+sudo -u postgres createuser linkwarden
+
+# Grant ownership
+sudo -u postgres psql -c "ALTER DATABASE linkwarden OWNER TO linkwarden;"
+sudo -u postgres psql -d linkwarden -c "GRANT ALL ON SCHEMA public TO linkwarden;"
+```
+
+**"User was denied access" even with correct password:**
+
+This usually means PostgreSQL permissions aren't set up correctly. Grant superuser temporarily to test:
+
+```bash
+sudo -u postgres psql -c "ALTER USER linkwarden WITH SUPERUSER;"
+sudo systemctl restart linkwarden.service
+```
+
+If that works, the issue is permissions. You can revoke superuser after and grant specific permissions instead.
+
+**Verify PostgreSQL connection works:**
+
+Test the connection manually before debugging the service:
+
+```bash
+# Via socket (peer auth)
+sudo -u linkwarden psql -d linkwarden -c "SELECT 1;"
+
+# Via TCP with password
+PGPASSWORD='your-password' psql -h localhost -U linkwarden -d linkwarden -c "SELECT 1;"
 ```
 
 ## Monitoring and Alerting Stack
@@ -1447,8 +1775,13 @@ tailscale status
 
 **Access services via Tailscale:**
 
-- AdGuard Home: http://[tailscale-hostname]:3000 or http://adguard.home
-- Syncthing: http://[tailscale-hostname]:8384 or http://syncthing.home
+With split DNS configured, all `.home` domains resolve on both your LAN and Tailscale network. Use the same URLs everywhere:
+
+- AdGuard Home: http://adguard.home
+- Syncthing: http://syncthing.home
+- Linkwarden: http://links.home
+- SearX: http://search.home
+- Nextcloud: http://cloud.home
 - SSH: `ssh ppb1701@[tailscale-hostname]`
 
 **Features:**
@@ -1457,6 +1790,7 @@ tailscale status
 - No port forwarding needed
 - End-to-end encrypted connections
 - Works behind NAT/firewall
+- Split DNS: `.home` domains work on LAN and Tailscale
 - Free for personal use (up to 100 devices)
 - Mobile apps available (iOS, Android)
 
@@ -1545,7 +1879,7 @@ PersistentKeepalive = 25
 
 ## File Storage
 
-### Nextcloud (Port 8280) - Already Included!
+### Nextcloud - Already Included!
 
 **Purpose:** Private cloud storage and collaboration platform
 
@@ -1555,10 +1889,10 @@ Nextcloud is already configured in `modules/services.nix` and provides a complet
 
 **Configuration Details:**
 - **Package:** Nextcloud 31 (latest version)
-- **Port:** 8280 (configured to avoid conflict with AdGuard Home on port 3000)
+- **Access:** Via nginx reverse proxy at `http://cloud.home`
 - **Database:** PostgreSQL with automatic local creation
 - **Data Storage:** /mnt/nextcloud-data (external drive mount required)
-- **Access:** HTTP only (https = false) - designed for local/Tailscale access
+- **Protocol:** HTTP only (designed for local/Tailscale access)
 - **Security:** Brute-force and rate limiting disabled for convenience on trusted networks
 - **Integration:** Fully integrated with Prometheus monitoring, Nginx proxy, and Tailscale VPN
 
@@ -1636,11 +1970,10 @@ See `docs/NEXTCLOUD-SETUP.md` for comprehensive documentation including:
 
 5. **Configure DNS rewrite in AdGuard Home**:
    - Open AdGuard Home → Filters → DNS rewrites
-   - Add: `nextcloud.home → YOUR_SERVER_IP`
+   - Add: `cloud.home → YOUR_SERVER_IP`
 
 6. **Access Nextcloud**:
-   - Via DNS: http://nextcloud.home:8280
-   - Direct: http://YOUR_SERVER_IP:8280
+   - URL: http://cloud.home
    - Username: `root`
    - Password: Contents of `/etc/nixos/private/nextcloud-admin-pass`
 
@@ -1664,14 +1997,12 @@ Nextcloud monitoring is pre-configured in `modules/monitoring.nix`:
 
 - **Desktop clients:** Available for Windows, macOS, and Linux at https://nextcloud.com/install/#install-clients
 - **Mobile apps:** Available for iOS and Android
-- **Configuration:** Point clients to `http://nextcloud.home:8280` (or use Tailscale hostname)
+- **Configuration:** Point clients to `http://cloud.home`
 
 **iOS App Setup:**
 
 1. Install "Nextcloud - Files & Photos" from App Store
-2. Configure connection:
-   - Via Tailscale: `http://nextcloud.vpn:8280` (recommended)
-   - Via Local Network: `http://nextcloud.home:8280`
+2. Configure connection: `http://cloud.home` (works on both LAN and Tailscale via split DNS)
 3. Trust the HTTP certificate warning (expected for local HTTP)
 4. Login with root credentials
 
@@ -1700,17 +2031,17 @@ curl http://localhost:9205/metrics
 
 **Accessing via Tailscale:**
 
-Nextcloud is configured to work seamlessly with Tailscale:
-- Trusted domains include `nextcloud.vpn`
+Nextcloud works seamlessly with Tailscale via split DNS:
+- The `.home` domains resolve on both LAN and Tailscale networks
 - Trusted proxies include entire Tailscale IP range (100.64.0.0/10)
-- Access from anywhere: `http://YOUR-TAILSCALE-HOSTNAME:8280`
+- Access from anywhere using the same URL: `http://cloud.home`
 
 **Common Issues:**
 
-**Port 8280 not accessible:**
+**cloud.home not accessible:**
 ```bash
-# Verify port is listening
-sudo ss -tlnp | grep 8280
+# Verify Nextcloud is running
+systemctl status phpfpm-nextcloud
 
 # Check Nginx configuration
 sudo nginx -t
@@ -1997,7 +2328,11 @@ Your own GitHub.
 
 Nginx is already configured to provide clean local URLs for your services!
 
-**Configured in `modules/services.nix`:**
+**Configuration Structure:**
+- Main nginx settings: `modules/services.nix`
+- Virtual hosts: `modules/nginx-virtualhosts.nix` (separate file for better readability)
+
+**Main configuration (in `modules/services.nix`):**
 
 ```nix
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2006,25 +2341,59 @@ Nginx is already configured to provide clean local URLs for your services!
 services.nginx = {
   enable = true;
 
+  recommendedGzipSettings = true;
+  recommendedOptimisation = true;
   recommendedProxySettings = true;
   recommendedTlsSettings = true;
 
-  virtualHosts = {
-    "adguard.home" = {
-      default = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:3000";
-        proxyWebsockets = true;
-      };
-    };
+  # Enable stub_status for Prometheus nginx exporter
+  appendHttpConfig = ''
+    server {
+      listen 127.0.0.1:8080;
+      location /nginx_status {
+        stub_status on;
+        access_log off;
+      }
+    }
+  '';
 
-    "syncthing.home" = {
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:8384";
-        proxyWebsockets = true;
-      };
+  # Virtual hosts defined in modules/nginx-virtualhosts.nix
+};
+```
+
+**Virtual hosts (in `modules/nginx-virtualhosts.nix`):**
+
+```nix
+services.nginx.virtualHosts = {
+  "adguard.home" = {
+    default = true;
+    locations."/" = {
+      proxyPass = "http://127.0.0.1:3000";
+      proxyWebsockets = true;
     };
   };
+
+  "syncthing.home" = {
+    locations."/" = {
+      proxyPass = "http://127.0.0.1:8384";
+      proxyWebsockets = true;
+    };
+  };
+
+  "search.home" = {
+    locations."/" = {
+      proxyPass = "http://127.0.0.1:8888";
+      proxyWebsockets = true;
+    };
+  };
+
+  "links.home" = {
+    locations."/" = {
+      proxyPass = "http://127.0.0.1:8230";
+    };
+  };
+
+  # ... and more
 };
 ```
 
@@ -2042,6 +2411,10 @@ Since AdGuard Home is your DNS server, configure DNS rewrites for automatic reso
 ```
 adguard.home       → 192.168.1.154
 syncthing.home     → 192.168.1.154
+search.home        → 192.168.1.154
+links.home         → 192.168.1.154
+notes.home         → 192.168.1.154
+cloud.home         → 192.168.1.154
 ```
 
 **Monitoring Services** (if enabled):
@@ -2067,17 +2440,21 @@ If you're not using AdGuard Home as your network DNS server, add to `/etc/hosts`
 ```bash
 # On Windows: C:\Windows\System32\drivers\etc\hosts
 # On Linux/Mac: /etc/hosts
-192.168.1.154  adguard.home syncthing.home grafana.home prometheus.home alertmanager.home ntfy.home
+192.168.1.154  adguard.home syncthing.home search.home links.home notes.home cloud.home grafana.home prometheus.home alertmanager.home ntfy.home
 ```
 
 **Access services:**
 
 - AdGuard Home: http://adguard.home (instead of http://192.168.1.154:3000)
 - Syncthing: http://syncthing.home (instead of http://192.168.1.154:8384)
+- SearX: http://search.home (instead of http://192.168.1.154:8888)
+- Linkwarden: http://links.home (instead of http://192.168.1.154:8230)
+- NoteDiscovery: http://notes.home (instead of http://192.168.1.154:5000)
+- Nextcloud: http://cloud.home
 
 **Adding More Virtual Hosts:**
 
-Edit `modules/services.nix` (use `es` alias) and add to the `virtualHosts` section:
+Edit `modules/nginx-virtualhosts.nix` and add a new virtual host:
 
 ```nix
 "yourservice.home" = {
@@ -2379,6 +2756,13 @@ The backup system uses **Restic** for encrypted, deduplicated backups with autom
 
 - **What:** `/etc/nixos/private` (secrets, passwords, device IDs)
 - **When:** 3:15 AM daily
+- **Retention:** 7 days + 4 weeks + 12 months
+
+#### 4. Linkwarden Backup (Daily)
+
+- **What:** PostgreSQL database dump + `/var/lib/linkwarden/data` (archived pages, screenshots, uploads)
+- **When:** 2:40 AM daily
+- **Safety:** Uses `pg_dump` to create consistent database snapshot
 - **Retention:** 7 days + 4 weeks + 12 months
 
 ### Setup

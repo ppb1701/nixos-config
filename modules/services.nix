@@ -48,8 +48,10 @@ in
     };
   };
 
-  # Linkwarden - run manually via systemd
-      systemd.services.linkwarden = {
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LINKWARDEN - BOOKMARK MANAGER
+  # ═══════════════════════════════════════════════════════════════════════════
+  systemd.services.linkwarden = {
         description = "Linkwarden Bookmark Manager";
         after = [ "network.target" "postgresql.service" ];
         wantedBy = [ "multi-user.target" ];
