@@ -99,6 +99,9 @@
   # ═══════════════════════════════════════════════════════════════════════════
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  virtualisation.podman.enable = true;
+
+  virtualisation.oci-containers.backend = "podman";
   # ═══════════════════════════════════════════════════════════════════════════
   # SSH SERVER - BULLETPROOF CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════

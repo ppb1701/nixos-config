@@ -69,6 +69,35 @@ in
       ];
     };
 
+     # Linkwarden database and data backup (daily)
+     linkwarden = {
+       repository = "/var/local/backups/restic";
+       passwordFile = "/etc/nixos/private/restic-password";
+ 
+       paths = [
+         "/var/backup/linkwarden-db"
+         "/var/lib/linkwarden/data"  # Archived pages, screenshots, uploads
+       ];
+ 
+       # Create database dump before backup
+       backupPrepareCommand = ''
+         mkdir -p /var/backup/linkwarden-db
+         ${pkgs.sudo}/bin/sudo -u postgres ${pkgs.postgresql}/bin/pg_dump linkwarden > /var/backup/linkwarden-db/linkwarden.sql
+       '';
+ 
+       # Daily at 2:30 AM (offset from Nextcloud)
+       timerConfig = {
+         OnCalendar = "02:40";
+         Persistent = true;
+       };
+ 
+       pruneOpts = [
+         "--keep-daily 7"
+         "--keep-weekly 4"
+         "--keep-monthly 12"
+       ];
+     };
+
     # Private configs backup (daily)
     private-configs = {
       repository = "/var/local/backups/restic";
@@ -104,6 +133,9 @@ in
       restic-backups-private-configs.postStart = ''
         chmod -R a+rX /var/local/backups/restic/
       '';
+      restic-backups-linkwarden.postStart = ''
+        chmod -R a+rX /var/local/backups/restic/
+      '';
     };
 
   # Create backup directories
@@ -112,5 +144,6 @@ in
     "d /var/local/backups/restic 0700 root root -"
     "d /var/backup 0755 root root -"
     "d /var/backup/nextcloud-db 0755 nextcloud nextcloud -"
+    "d /var/backup/linkwarden-db 0755 postgres postgres -"
   ];
 }

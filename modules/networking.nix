@@ -9,6 +9,14 @@
   # ═══════════════════════════════════════════════════════════════════════════
   networking.hostName = "nixos";
 
+  
+    boot.kernel.sysctl = {
+      "net.ipv4.ip_forward" = 1;
+      #"net.ipv6.conf.all.forwarding" = 1;
+    };
+  
+  
+
   # ═══════════════════════════════════════════════════════════════════════════
   # DNS CONFIGURATION - Control D (Fixed DNS Loop!)
   # ═══════════════════════════════════════════════════════════════════════════
@@ -19,7 +27,7 @@
   # ═══════════════════════════════════════════════════════════════════════════
   networking.networkmanager = {
     enable = true;
-    dns = "systemd-resolved";
+    dns = "default";
     insertNameservers = [ "76.76.2.2" "76.76.10.2" ];
 
     # Declaratively configure the wired connection
@@ -64,7 +72,7 @@
       443     # HTTPS
       3000    # AdGuard Home web UI (direct access)
 	  5000    # Note Discovery (direct access)
-	  8280    # Nextcloud
+	  #8280    # Nextcloud
       #8000   # temp httpserver file transfer.  disable for harden normal use.
       8384    # Syncthing web UI (direct access)
       22000   # Syncthing file transfers
@@ -81,7 +89,7 @@
       21027   # Syncthing discovery
     ];
     # Trust Tailscale interface
-    trustedInterfaces = [ "tailscale0" ];
+    trustedInterfaces = [ "tailscale0" "docker0" ];
     
     # Required for Tailscale NAT traversal
     checkReversePath = "loose";

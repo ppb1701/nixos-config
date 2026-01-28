@@ -3,6 +3,10 @@ let
   secrets = import /etc/nixos/private/secrets.nix;
 in
 {
+  imports = [
+      ./nginx-virtualhosts.nix
+    ];
+
   # ═══════════════════════════════════════════════════════════════════════════
   # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
   # ═══════════════════════════════════════════════════════════════════════════
@@ -44,6 +48,61 @@ in
     };
   };
 
+  # Linkwarden - run manually via systemd
+      systemd.services.linkwarden = {
+        description = "Linkwarden Bookmark Manager";
+        after = [ "network.target" "postgresql.service" ];
+        wantedBy = [ "multi-user.target" ];
+        
+       environment = {
+          DATABASE_URL = "postgresql://linkwarden:${secrets.linkwardenDbPassword}@localhost:5432/linkwarden";
+          NEXTAUTH_URL = "http://links.home";
+          NEXTAUTH_SECRET = secrets.linkwardenNextAuthSecret;
+          NEXT_PUBLIC_DISABLE_REGISTRATION = "true";
+          STORAGE_FOLDER = "/var/lib/linkwarden/data";
+          LINKWARDEN_HOST = "0.0.0.0";
+          LINKWARDEN_PORT = "8230";  # Change from PORT to LINKWARDEN_PORT
+          NODE_ENV = "production";
+        };
+        
+        serviceConfig = {
+          Type = "simple";
+          User = "linkwarden";
+          Group = "linkwarden";
+          WorkingDirectory = "/var/lib/linkwarden";
+          ExecStart = "${pkgs.linkwarden}/bin/linkwarden";
+          Restart = "on-failure";
+          RestartSec = "10s";
+          
+          # Security hardening
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          ReadWritePaths = "/var/lib/linkwarden";
+        };
+      };
+    
+      # Create linkwarden user
+      users.users.linkwarden = {
+        isSystemUser = true;
+        group = "linkwarden";
+        home = "/var/lib/linkwarden";
+        createHome = true;
+      };
+      
+      users.groups.linkwarden = {};
+
+      # PostgreSQL - needed by Linkwarden and potentially other services
+      services.postgresql = {
+        enable = true;
+        ensureDatabases = [ "linkwarden" ];
+        ensureUsers = [{
+          name = "linkwarden";
+          ensureDBOwnership = true;
+        }];
+      };
+
   # ═══════════════════════════════════════════════════════════════════════════
   # SYNCTHING - FILE SYNCHRONIZATION
   # ═══════════════════════════════════════════════════════════════════════════
@@ -68,6 +127,7 @@ in
   services.tailscale = {
     enable = true;
     useRoutingFeatures = "server";
+    extraUpFlags = [ "--advertise-routes=192.168.50.0/24" ];
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -129,7 +189,6 @@ in
     }; 
    
   
-  
   # ═══════════════════════════════════════════════════════════════════════════
   # NEXTCLOUD - PRIVATE CLOUD
   # ═══════════════════════════════════════════════════════════════════════════
@@ -151,10 +210,9 @@ in
       "auth.bruteforce.protection.enabled" = false;
       "ratelimit.protection.enabled" = false;
       "overwriteprotocol" = "http";
-      trusted_domains = [
-        "nextcloud.home"
+      trusted_domains = [        
         "localhost"
-        "nextcloud.vpn"
+        "cloud.home"
       ];
       trusted_proxies = [
         "100.64.0.0/10"
@@ -196,83 +254,8 @@ in
       }
     '';
 
-    virtualHosts = {
-      "search.home" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:8888";
-          proxyWebsockets = true;
-          extraConfig = ''
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          '';
-        };
-      };
-      "search.vpn" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:8888";
-          proxyWebsockets = true;
-          extraConfig = ''
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          '';
-        };
-      };
-      "ntfy.home" = {
-        locations."/" = {
-          proxyPass = "http://localhost:2586";
-          proxyWebsockets = true;
-        };
-      };
-
-      "alertmanager.home" = {
-        locations."/" = {
-          proxyPass = "http://localhost:9093";
-        };
-      };
-
-      "grafana.home" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:3001";
-          proxyWebsockets = true;
-        };
-      };
-
-      "prometheus.home" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:9090";
-        };
-      };
-
-      "adguard.home" = {
-        default = true;
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:3000";
-          proxyWebsockets = true;
-        };
-      };
-
-      "syncthing.home" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:8384";
-          proxyWebsockets = true;
-        };
-      };
-
-      "notes.home" = {
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:5000";
-          proxyWebsockets = true;
-          extraConfig = ''
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-          '';
-        };
-      };
-    };
+    #virtualhosts defined in ngix-virtualhosts.nix
+    
   };
 
   # ═══════════════════════════════════════════════════════════════════════════
