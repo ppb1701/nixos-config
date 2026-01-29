@@ -132,6 +132,8 @@
     "d /var/local/vaultwarden/backup 0755 vaultwarden vaultwarden -"
     "d /var/local/backups2 0755 ppb1701 users -"
     "d /mnt/nextcloud-data/code 0755 ppb1701 users -"
+    "d /var/cache/linkwarden 0755 linkwarden linkwarden -"
+    "d /var/cache/linkwarden/cache 0755 linkwarden linkwarden -"
   ];
 
   # Mount the drive

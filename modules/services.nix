@@ -4,8 +4,8 @@ let
 in
 {
   imports = [
-      ./nginx-virtualhosts.nix
-    ];
+    ./nginx-virtualhosts.nix
+  ];
 
   # ═══════════════════════════════════════════════════════════════════════════
   # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
@@ -59,6 +59,7 @@ in
        environment = {
           DATABASE_URL = "postgresql://linkwarden:${secrets.linkwardenDbPassword}@localhost:5432/linkwarden";
           NEXTAUTH_URL = "http://links.home";
+          NEXTAUTH_URL_INTERNAL = "http://localhost:8230";
           NEXTAUTH_SECRET = secrets.linkwardenNextAuthSecret;
           NEXT_PUBLIC_DISABLE_REGISTRATION = "true";
           STORAGE_FOLDER = "/var/lib/linkwarden/data";
@@ -81,7 +82,10 @@ in
           PrivateTmp = true;
           ProtectSystem = "strict";
           ProtectHome = true;
-          ReadWritePaths = "/var/lib/linkwarden";
+          ReadWritePaths = [
+              "/var/lib/linkwarden"
+              "/var/cache/linkwarden"  
+            ];
         };
       };
     
@@ -255,7 +259,7 @@ in
         }
       }
     '';
-
+  
     #virtualhosts defined in ngix-virtualhosts.nix
     
   };
