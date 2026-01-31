@@ -15,11 +15,9 @@
       #"net.ipv6.conf.all.forwarding" = 1;
     };
   
-  #networking.extraHosts = ''
-   # 127.0.0.1 git.home
-   # # OR use the LAN IP if Gitea moves to NixOS 1 as the main server
-    ## 192.168.X.X git.home
-  #'';
+  networking.extraHosts = ''
+     192.168.50.53 git.home
+  '';
 
   # ═══════════════════════════════════════════════════════════════════════════
   # DNS CONFIGURATION - Control D (Fixed DNS Loop!)
