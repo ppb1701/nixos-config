@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 let
   secrets = import /etc/nixos/private/secrets.nix;
 in
@@ -108,6 +108,54 @@ in
           ensureDBOwnership = true;
         }];
       };
+
+   # ═══════════════════════════════════════════════════════════════════════════
+  # GITEA - GIT HOSTING (PRIMARY INSTANCE)
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.gitea = {
+    enable = false;
+    # Optional: Pin a specific version if you want stability
+    # package = pkgs.gitea;
+
+    database = {
+      type = "sqlite3";
+      path = "/var/lib/gitea/data/gitea.db";
+    };
+
+    settings = {
+      server = {
+        DOMAIN = "git.home";
+        ROOT_URL = "http://git.home";
+        HTTP_PORT = 3300; 
+        HTTP_ADDR = "127.0.0.1"; 
+      };
+      security = {
+        SECRET_KEY = lib.mkForce secrets.giteaSecret;
+        INTERNAL_TOKEN = lib.mkForce secrets.giteaInternalToken;
+      };
+    
+      service = {
+        DISABLE_REGISTRATION = true;
+        REQUIRE_SIGNIN_VIEW = true;
+      };
+    };
+    
+
+    # Optional: Pre-configure an admin user
+    # lfs = {
+    #   enable = true;
+    # };
+  };
+
+  # Ensure Gitea user/group exists
+  users.users.gitea = {
+    isSystemUser = true;
+    group = "gitea";
+    home = "/var/lib/gitea";
+    createHome = false; # systemd/tmpfiles handles this
+  };
+  users.groups.gitea = {};
+
 
   # ═══════════════════════════════════════════════════════════════════════════
   # SYNCTHING - FILE SYNCHRONIZATION

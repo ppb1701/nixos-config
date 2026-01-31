@@ -55,7 +55,7 @@
   users.users.ppb1701 = {
     isNormalUser = true;
     description = "ppb1701";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "docker" "gitea" ];
     openssh.authorizedKeys.keys = import /etc/nixos/private/ssh-keys.nix;
     packages = with pkgs; [
       kdePackages.kate
@@ -134,6 +134,24 @@
     "d /mnt/nextcloud-data/code 0755 ppb1701 users -"
     "d /var/cache/linkwarden 0755 linkwarden linkwarden -"
     "d /var/cache/linkwarden/cache 0755 linkwarden linkwarden -"
+    # 1. Gitea Main Folder
+      # "2775" = Set GID (2) + Group Read Write/Execute (775)
+      # Ensures new files inherit the 'gitea' group and are group-writable.
+   #   "d /var/lib/gitea 2775 gitea gitea - -"
+    
+      # 2. Syncthing Folder Marker
+      # Creates the hidden folder marker automatically on boot
+      # so Syncthing doesn't complain "folder marker missing" after a reboot.
+    #  "d /var/lib/gitea/.stfolder 2775 gitea gitea - -"
+    
+      # 3. SSH Folder Fix
+      # The .ssh folder is strict by default (700).
+      # We enforce 2770 so the group can traverse and read keys for backup.
+     # "d /var/lib/gitea/.ssh 2770 gitea gitea - -"
+    
+      # 4. Authorized Keys Fix
+      # Ensure the key file itself is readable by the group (640).
+      #"Z /var/lib/gitea/.ssh/authorized_keys 0640 gitea gitea - -"
   ];
 
   # Mount the drive
