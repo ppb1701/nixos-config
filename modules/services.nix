@@ -165,6 +165,7 @@ in
     user = "ppb1701";
     dataDir = "/home/ppb1701";
     configDir = "/home/ppb1701/.config/syncthing";
+    group = "syncthing";
 
     guiAddress = "0.0.0.0:8384";
 
@@ -344,6 +345,8 @@ in
       RemainAfterExit = true;
       User = "notediscovery";
       Group = "notediscovery";
+      SupplementaryGroups = [ "syncthing" ];
+      UMask = "0002";  # Creates files with group write by default
     };
 
     path = with pkgs; [ git python3 ];
@@ -411,4 +414,24 @@ in
   systemd.tmpfiles.rules = [
     "d /var/lib/notediscovery 0755 notediscovery notediscovery -"
   ];
+
+  
+  # Fix Blog subdirectories after NoteDiscovery starts
+  systemd.services.fix-blog-permissions = {
+    description = "Fix Blog directory permissions for Syncthing";
+    after = [ "notediscovery.service" ];
+    wantedBy = [ "multi-user.target" ];
+  
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+  
+    script = ''
+      # Recursively fix ownership and permissions
+      ${pkgs.coreutils}/bin/chown -R ppb1701:syncthing /var/lib/obsidian/ppb/Blog
+      ${pkgs.coreutils}/bin/chmod -R u+rwX,g+rwX /var/lib/obsidian/ppb/Blog
+      ${pkgs.findutils}/bin/find /var/lib/obsidian/ppb/Blog -type d -exec chmod g+s {} \;
+    '';
+  };
 }
