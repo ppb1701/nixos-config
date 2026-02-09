@@ -1,7 +1,110 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   secrets = import /etc/nixos/private/secrets.nix;
+  
+  # Build rule groups conditionally
+  systemAlertsRules = ''
+    - alert: ServiceDown
+      expr: up == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Service down"
+        description: "A service has been down for more than 2 minutes."
+
+    - alert: HTTPProbeFailure
+      expr: probe_success{job="blackbox"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "HTTP probe failed for {{ $labels.instance }}"
+        description: "{{ $labels.instance }} has been unreachable via HTTP for more than 2 minutes."
+
+    - alert: DiskSpaceWarning
+      expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Low disk space on root filesystem"
+        description: "Root filesystem has less than 20 percent space remaining."
+
+    - alert: DiskSpaceCritical
+      expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Critical disk space on root filesystem"
+        description: "Root filesystem has less than 10 percent space remaining."
+
+    - alert: HighCPUUsage
+      expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is above 80 percent for more than 10 minutes."
+
+    - alert: HighMemoryUsage
+      expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is above 90 percent."
+  '' + lib.optionalString config.services.nginx.enable ''
+
+    - alert: NginxHighErrorRate
+      expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High Nginx 5xx error rate"
+        description: "Nginx is returning too many 5xx errors."
+  '';
+
+  vaultwardenRules = lib.optionalString (config.services.vaultwarden.enable or false) ''
+    - name: vaultwarden
+      rules:
+        - alert: VaultwardenDown
+          expr: probe_success{instance="https://${secrets.tailscaleHostname}"} == 0
+          for: 20m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Vaultwarden password manager is down"
+            description: "Vaultwarden has been unreachable for 20 minutes"
+  '';
+
+  nextcloudRules = lib.optionalString config.services.nextcloud.enable ''
+    - name: nextcloud
+      rules:
+        - alert: NextcloudDown
+          expr: probe_success{job="nextcloud-http"} == 0
+          for: 20m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Nextcloud is unreachable"
+            description: "Nextcloud HTTP check has failed for 15 minutes"
+
+        - alert: NextcloudDiskSpaceLow
+          expr: (nextcloud_system_disk_free_bytes / nextcloud_system_disk_total_bytes) < 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Nextcloud disk space low"
+            description: "Less than 10% free space on Nextcloud data drive"
+  '';
+
 in
 {
   # ═══════════════════════════════════════════════════════════════════════════
@@ -19,13 +122,13 @@ in
         port = 9100;
       };
 
-      nginx = {
+      nginx = lib.mkIf config.services.nginx.enable {
         enable = true;
         port = 9113;
         scrapeUri = "http://127.0.0.1:8080/nginx_status";
       };
 
-      nextcloud = {
+      nextcloud = lib.mkIf config.services.nextcloud.enable {
         enable = true;
         url = "http://nextcloud.home:8280";
         username = "root";
@@ -51,80 +154,89 @@ in
       };
     };
 
-    scrapeConfigs = [
-      {
+    scrapeConfigs =
+      # Core monitoring (always on)
+      [
+        {
+          job_name = "node";
+          static_configs = [{
+            targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];
+          }];
+        }
+        {
+          job_name = "prometheus";
+          static_configs = [{
+            targets = [ "127.0.0.1:${toString config.services.prometheus.port}" ];
+          }];
+        }
+      ]
+      # Optional: SearxNG
+      ++ lib.optionals (config.services.searx.enable or false) [{
         job_name = "searx";
         static_configs = [{
           targets = [ "localhost:8888" ];
         }];
-      }
-      {
-        job_name = "node";
-        static_configs = [{
-          targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];
-        }];
-      }
-      {
+      }]
+      # Optional: Nginx
+      ++ lib.optionals config.services.nginx.enable [{
         job_name = "nginx";
         static_configs = [{
           targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.nginx.port}" ];
         }];
-      }
-      {
-        job_name = "nextcloud";
-        static_configs = [{
-          targets = [ "localhost:9205" ];
-        }];
-      }
-      {
-        job_name = "nextcloud-http";
-        scrape_interval = "30s";
-        metrics_path = "/probe";
-        params.module = [ "http_2xx" ];
-        static_configs = [{
-          targets = [ "http://${secrets.tailscaleIP}:8280" ];
-        }];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            target_label = "__param_target";
-          }
-          {
-            source_labels = [ "__param_target" ];
-            target_label = "instance";
-          }
-          {
-            target_label = "__address__";
-            replacement = "localhost:9115";
-          }
-        ];
-      }
-      {
-        job_name = "prometheus";
-        static_configs = [{
-          targets = [ "127.0.0.1:${toString config.services.prometheus.port}" ];
-        }];
-      }
-      {
+      }]
+      # Optional: Nextcloud
+      ++ lib.optionals config.services.nextcloud.enable [
+        {
+          job_name = "nextcloud";
+          static_configs = [{
+            targets = [ "localhost:9205" ];
+          }];
+        }
+        {
+          job_name = "nextcloud-http";
+          scrape_interval = "30s";
+          metrics_path = "/probe";
+          params.module = [ "http_2xx" ];
+          static_configs = [{
+            targets = [ "http://${secrets.tailscaleIP}:8280" ];
+          }];
+          relabel_configs = [
+            {
+              source_labels = [ "__address__" ];
+              target_label = "__param_target";
+            }
+            {
+              source_labels = [ "__param_target" ];
+              target_label = "instance";
+            }
+            {
+              target_label = "__address__";
+              replacement = "localhost:9115";
+            }
+          ];
+        }
+      ]
+      # Optional: Syncthing
+      ++ lib.optionals config.services.syncthing.enable [{
         job_name = "syncthing";
         metrics_path = "/metrics";
         static_configs = [{
           targets = [ "127.0.0.1:8384" ];
         }];
         basic_auth = (import /etc/nixos/private/syncthing-secrets.nix).prometheus_auth;
-      }
-      {
+      }]
+      # Blackbox probes - conditionally add targets
+      ++ [{
         job_name = "blackbox";
         metrics_path = "/probe";
         params = {
           module = [ "http_2xx" ];
         };
         static_configs = [{
-          targets = [
-            "http://127.0.0.1:5000"      # NoteDiscovery
-            "http://127.0.0.1:8384"      # Syncthing GUI
-            "http://127.0.0.1:3000"      # AdGuard Home
-            "https://${secrets.tailscaleHostname}"  # Vaultwarden
+          targets = lib.flatten [
+            (lib.optional (config.services.syncthing.enable) "http://127.0.0.1:8384")
+            (lib.optional (config.services.adguardhome.enable or false) "http://127.0.0.1:3000")
+            (lib.optional (config.services.vaultwarden.enable or false) "https://${secrets.tailscaleHostname}")
           ];
         }];
         relabel_configs = [
@@ -141,8 +253,7 @@ in
             replacement = "127.0.0.1:9115";
           }
         ];
-      }
-    ];
+      }];
 
     # Alert Rules
     rules = [
@@ -151,99 +262,9 @@ in
           - name: system_alerts
             interval: 30s
             rules:
-              - alert: ServiceDown
-                expr: up == 0
-                for: 2m
-                labels:
-                  severity: critical
-                annotations:
-                  summary: "Service down"
-                  description: "A service has been down for more than 2 minutes."
-
-              - alert: HTTPProbeFailure
-                expr: probe_success{job="blackbox"} == 0
-                for: 2m
-                labels:
-                  severity: critical
-                annotations:
-                  summary: "HTTP probe failed for {{ $labels.instance }}"
-                  description: "{{ $labels.instance }} has been unreachable via HTTP for more than 2 minutes."
-
-              - alert: DiskSpaceWarning
-                expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
-                for: 5m
-                labels:
-                  severity: warning
-                annotations:
-                  summary: "Low disk space on root filesystem"
-                  description: "Root filesystem has less than 20 percent space remaining."
-
-              - alert: DiskSpaceCritical
-                expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
-                for: 2m
-                labels:
-                  severity: critical
-                annotations:
-                  summary: "Critical disk space on root filesystem"
-                  description: "Root filesystem has less than 10 percent space remaining."
-
-              - alert: HighCPUUsage
-                expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
-                for: 10m
-                labels:
-                  severity: warning
-                annotations:
-                  summary: "High CPU usage detected"
-                  description: "CPU usage is above 80 percent for more than 10 minutes."
-
-              - alert: HighMemoryUsage
-                expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
-                for: 5m
-                labels:
-                  severity: warning
-                annotations:
-                  summary: "High memory usage detected"
-                  description: "Memory usage is above 90 percent."
-
-              - alert: NginxHighErrorRate
-                expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05
-                for: 5m
-                labels:
-                  severity: warning
-                annotations:
-                  summary: "High Nginx 5xx error rate"
-                  description: "Nginx is returning too many 5xx errors."
-                  
-          - name: vaultwarden
-            rules:
-              - alert: VaultwardenDown
-                expr: probe_success{instance="https://${secrets.tailscaleHostname}"} == 0
-                for: 20m
-                labels:
-                  severity: critical
-                annotations:
-                  summary: "Vaultwarden password manager is down"
-                  description: "Vaultwarden has been unreachable for 20 minutes"
-
-          - name: nextcloud
-            rules:
-              - alert: NextcloudDown
-                expr: probe_success{job="nextcloud-http"} == 0
-                for: 20m
-                labels:
-                  severity: critical
-                annotations:
-                  summary: "Nextcloud is unreachable"
-                  description: "Nextcloud HTTP check has failed for 15 minutes"
-
-              - alert: NextcloudDiskSpaceLow
-                expr: (nextcloud_system_disk_free_bytes / nextcloud_system_disk_total_bytes) < 0.1
-                for: 10m
-                labels:
-                  severity: warning
-                annotations:
-                  summary: "Nextcloud disk space low"
-                  description: "Less than 10% free space on Nextcloud data drive"
+      ${systemAlertsRules}
+      ${vaultwardenRules}
+      ${nextcloudRules}
       ''
     ];
 

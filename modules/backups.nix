@@ -2,13 +2,20 @@
 
 let
   secrets = import ../private/secrets.nix;
+  enableBackups = {
+      vaultwarden = true;
+      nextcloud = true;
+      linkwarden = true;
+      gitea = false;
+      private = true; #all secrets here, recommend set to true once restic has password and is going.
+    };
 in
 {
   # Restic backup jobs
   services.restic.backups = {
 
     # Vaultwarden backup (hourly)
-    vaultwarden = {
+    vaultwarden = lib.mkIf enableBackups.vaultwarden {
       repository = "/var/local/backups/restic";
       passwordFile = "/etc/nixos/private/restic-password";
 
@@ -42,7 +49,7 @@ in
     };
 
     # Nextcloud database backup (daily)
-    nextcloud-db = {
+    nextcloud-db = lib.mkIf enableBackups.nextcloud {
       repository = "/var/local/backups/restic";
       passwordFile = "/etc/nixos/private/restic-password";
 
@@ -70,27 +77,27 @@ in
     };
 
      # Linkwarden database and data backup (daily)
-     linkwarden = {
+     linkwarden = lib.mkIf enableBackups.linkwarden {
        repository = "/var/local/backups/restic";
        passwordFile = "/etc/nixos/private/restic-password";
- 
+
        paths = [
          "/var/backup/linkwarden-db"
          "/var/lib/linkwarden/data"  # Archived pages, screenshots, uploads
        ];
- 
+
        # Create database dump before backup
        backupPrepareCommand = ''
          mkdir -p /var/backup/linkwarden-db
          ${pkgs.sudo}/bin/sudo -u postgres ${pkgs.postgresql}/bin/pg_dump linkwarden > /var/backup/linkwarden-db/linkwarden.sql
        '';
- 
+
        # Daily at 2:30 AM (offset from Nextcloud)
        timerConfig = {
          OnCalendar = "02:40";
          Persistent = true;
        };
- 
+
        pruneOpts = [
          "--keep-daily 7"
          "--keep-weekly 4"
@@ -98,54 +105,54 @@ in
        ];
      };
 
-    #gitea = {
-          #initialize = true;
-          #repository = "/var/local/backups/restic";
-    
+    gitea = lib.mkIf enableBackups.gitea {
+          initialize = true;
+          repository = "/var/local/backups/restic";
+
           # What to back up
-          #paths = [
-          #  "/var/lib/gitea/data"           # Repos and database
-          #  "/var/lib/gitea/custom/conf"    # Configuration
-          #];
-    
+          paths = [
+            "/var/lib/gitea/data"           # Repos and database
+            "/var/lib/gitea/custom/conf"    # Configuration
+          ];
+
           # What to exclude
-          #exclude = [
-          #  "/var/lib/gitea/data/sessions"
-          #  "/var/lib/gitea/data/tmp"
-          #];
-    
-          #passwordFile = "/etc/nixos/private/restic-password";
-    
+          exclude = [
+            "/var/lib/gitea/data/sessions"
+            "/var/lib/gitea/data/tmp"
+          ];
+
+          passwordFile = "/etc/nixos/private/restic-password";
+
           # Run daily at 2 AM
-          #timerConfig = {
-          #  OnCalendar = "02:00";
-          #  Persistent = true;
-          #};
-    
+          timerConfig = {
+            OnCalendar = "02:00";
+            Persistent = true;
+          };
+
           # Keep 7 daily, 4 weekly, 6 monthly snapshots
-          #pruneOpts = [
-          #  "--keep-daily 7"
-          #  "--keep-weekly 4"
-          #  "--keep-monthly 6"
-          #];
-    
+          pruneOpts = [
+            "--keep-daily 7"
+            "--keep-weekly 4"
+            "--keep-monthly 6"
+          ];
+
           # ═══════════════════════════════════════════════════════════════════
           # STOP GITEA BEFORE BACKUP (ensures data consistency)
           # ═══════════════════════════════════════════════════════════════════
-          #backupPrepareCommand = ''
-          #  ${pkgs.systemd}/bin/systemctl stop gitea
-          #'';
-    
+          backupPrepareCommand = ''
+            ${pkgs.systemd}/bin/systemctl stop gitea
+          '';
+
           # ═══════════════════════════════════════════════════════════════════
           # RESTART GITEA AFTER BACKUP
           # ═══════════════════════════════════════════════════════════════════
-          #backupCleanupCommand = ''
-          #  ${pkgs.systemd}/bin/systemctl start gitea
-          #'';
-        #};
+          backupCleanupCommand = ''
+            ${pkgs.systemd}/bin/systemctl start gitea
+          '';
+        };
 
     # Private configs backup (daily)
-    private-configs = {
+    private-configs = lib.mkIf enableBackups.private {
       repository = "/var/local/backups/restic";
       passwordFile = "/etc/nixos/private/restic-password";
 

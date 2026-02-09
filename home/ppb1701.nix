@@ -180,6 +180,7 @@
 ║   em         - Edit modules/monitoring.nix                 ║
 ║   ebios      - Edit modules/boot-bios.nix                  ║
 ║   euefi      - Edit modules/boot-uefi.nix                  ║
+║   ehost      - Edit modules/nginx-virtualhosts.nix         ║
 ║   ep         - Edit private/ssh-keys.nix                   ║
 ║   escrt      - Edit private/secrets.nix                    ║
 ║   ea         - Edit private/alertmanager.env               ║
@@ -232,6 +233,7 @@
    eb = "sudo micro /etc/nixos/configuration-bios.nix";
    ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
    euefi = "sudo micro /etc/nixos/modules/boot-uefi.nix";
+   ehost = "sudo micro /etc/nixos/modules/nginx-virtualhosts.nix";
    ea ="sudo micro /etc/nixos/private/alertmanager.env";
    eny ="sudo micro /etc/nixos/private/notediscovery-config.yaml";
    enx ="sudo micro /etc/nixos/private/notediscovery-config.nix";
