@@ -46,7 +46,21 @@ https://blog.ppb1701.com/nixos-adguard-series
 This repository has two main branches serving different purposes:
 
 - **`main`:** Production server configuration - battle-tested and running on physical hardware
+  - Most services are **enabled** and ready to configure
 - **`vm`:** Testing branch - for VM testing and development of new features
+  - Several services are **disabled** for clean testing environments
+
+**Services disabled in VM branch (enabled in main):**
+- Tailscale (VPN mesh network)
+- Vaultwarden (Password manager)
+- SearX (Self-hosted search)
+- Nextcloud (Private cloud storage)
+- Linkwarden (Bookmark manager)
+
+**Services disabled in both branches:**
+- Gitea (Git hosting - configured but disabled)
+
+If you clone the repo or use the VM branch, enable services by editing `/etc/nixos/modules/services.nix` and changing `enable = false` to `enable = true`, then run `sudo nixos-rebuild switch`.
 
 When deploying to production, use the `main` branch. Use `vm` for testing changes safely before deploying.
 
