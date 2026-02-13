@@ -158,6 +158,8 @@ in
 
       paths = [
         "/etc/nixos/private"
+        "/home/ppb1701/.config/syncthing/cert.pem"
+        "/home/ppb1701/.config/syncthing/key.pem"
       ];
 
       # Daily at 3 AM
