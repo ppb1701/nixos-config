@@ -43,6 +43,11 @@
           proxyPass = "http://127.0.0.1:8280";
           proxyWebsockets = true;
         };
+         extraConfig = ''
+      client_max_body_size 0;  # 0 = unlimited
+      client_body_timeout 300s;
+      fastcgi_read_timeout 300s;
+    '';
       };
 
       "ntfy.home" = {

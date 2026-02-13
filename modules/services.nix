@@ -252,6 +252,16 @@ in
     package = pkgs.nextcloud32;
     hostName = "nextcloud.home";
 
+    maxUploadSize = "70G";
+    
+      phpOptions = {
+            upload_max_filesize = lib.mkForce "70G";
+            post_max_size = lib.mkForce "0";
+            memory_limit = lib.mkForce "2G";  # Use mkForce to override the default
+            max_execution_time = lib.mkForce "3600";
+            output_buffering = lib.mkForce "0";
+          };
+      
     database.createLocally = true;
     config = {
       dbtype = "pgsql";
