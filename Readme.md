@@ -36,8 +36,8 @@ This configuration uses a **temporary, publicly-known password** for initial con
 
 This repository is the companion code for my blog series:
 
-**Building a Declarative AdGuard Home Server with NixOS**  
-https://blog.ppb1701.com/nixos-adguard-series
+**Building a Resilient Home Server Series**
+https://blog.ppb1701.com/building-a-resilient-home-server-series
 
 **Discussion:** [@ppb1701@ppb.social](https://ppb.social/@ppb1701)
 

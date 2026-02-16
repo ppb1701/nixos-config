@@ -103,7 +103,7 @@
 
   virtualisation.oci-containers.backend = "podman";
   # ═══════════════════════════════════════════════════════════════════════════
-  # SSH SERVER - BULLETPROOF CONFIGURATION
+  # SSH SERVER - RESILIENT CONFIGURATION
   # ═══════════════════════════════════════════════════════════════════════════
  # SSH Configuration - PRODUCTION HARDENED
   services.openssh = {
