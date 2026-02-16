@@ -43,6 +43,7 @@
   environment.etc."nixos/modules/system.nix".source = ./modules/system.nix;
   environment.etc."nixos/modules/backups.nix".source = ./modules/backups.nix;
   environment.etc."nixos/modules/nginx-virtualhosts.nix".source = ./modules/nginx-virtualhosts.nix;
+  environment.etc."nixos/modules/homepage.nix".source = ./modules/homepage.nix;
 
   # Copy home directory files
   environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;
@@ -114,6 +115,7 @@
     dig
     nh
     vivaldi
+    python3
   ];
 
   services.openssh = {

@@ -91,6 +91,15 @@
         };
       };
 
+      "home.home" = {
+      # listen = [{ addr = secrets.tailscaleIP; port = 80; }];
+      	locations."/" = {
+      		proxyPass = "http://127.0.0.1:8582";
+      		proxyWebsockets = true;
+      	};
+      };
+      
+
       "notes.home" = {
         locations."/" = {
           proxyPass = "http://127.0.0.1:5000";

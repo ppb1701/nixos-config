@@ -173,6 +173,7 @@
 ║ CONFIG EDITING:                                            ║
 ║   ec         - Edit configuration.nix                      ║
 ║   eh         - Edit home/ppb1701.nix                       ║
+║   ehp        - Edit modules/homepage.nix                   ║
 ║   ebu        - Edit modules/backups.nix                    ║
 ║   en         - Edit modules/networking.nix                 ║
 ║   es         - Edit modules/services.nix                   ║
@@ -222,6 +223,7 @@
    # Config editing
    ec = "sudo micro /etc/nixos/configuration.nix";
    eh = "sudo micro /etc/nixos/home/ppb1701.nix";
+   ehp = "sudo micro /etc/nixos/modules/homepage.nix";
    ebu = "sudo micro /etc/nixos/modules/backups.nix";
    en = "sudo micro /etc/nixos/modules/networking.nix";
    em = "sudo micro /etc/nixos/modules/monitoring.nix";
