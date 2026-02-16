@@ -7,6 +7,7 @@ This guide covers services in your NixOS configuration and how to add more.
 Your configuration already includes these services (configured in `modules/services.nix`):
 
 - **AdGuard Home** - DNS filtering and ad blocking (port 53, web UI port 3000)
+- **Homepage Dashboard** - Service dashboard with system monitoring (port 8582)
 - **Syncthing** - File synchronization (ports 22000, 21027, 8384)
 - **NoteDiscovery** - Web-based knowledge base for markdown notes (port 5000)
 - **Tailscale** - VPN for secure remote access
@@ -17,6 +18,68 @@ Your configuration already includes these services (configured in `modules/servi
 - **Linkwarden** - Self-hosted bookmark manager (port 8230)
 
 Plus desktop environment (LXQT), SSH server, and system utilities.
+
+## Dashboard
+
+### Homepage Dashboard (Port 8582)
+
+**Purpose:** Centralized service dashboard with real-time system resource monitoring
+
+Homepage Dashboard provides a clean, dark-themed landing page that automatically discovers and displays all enabled services on your server. It shows CPU, memory, and disk usage at a glance, along with quick links to every service.
+
+**Already Included:** Homepage Dashboard is configured in `modules/homepage.nix` and imported by `modules/services.nix`.
+
+**Features:**
+- Auto-discovers enabled services using NixOS module system (`lib.optionals`)
+- Real-time CPU, memory, and disk usage widgets
+- Dark theme with organized service categories (Network, Services, Monitoring)
+- Health check pings for each service
+- Clean row-based layout
+
+**Configuration (in `modules/homepage.nix`):**
+
+The dashboard automatically shows only services that are enabled in your configuration. For example, if `services.adguardhome.enable = true`, the AdGuard Home tile appears; if disabled, it's hidden.
+
+**Service Categories:**
+
+| Category | Services Shown |
+|---|---|
+| **Network** | AdGuard Home, Tailscale |
+| **Services** | Syncthing, Nextcloud, Vaultwarden, Linkwarden, SearX, NoteDiscovery, Gitea |
+| **Monitoring** | Grafana, Prometheus, Alertmanager, ntfy, Loki |
+
+**Access:**
+- Via Nginx: http://home.home
+- Direct: http://YOUR_SERVER_IP:8582
+
+**DNS Setup:**
+
+Add a DNS rewrite in AdGuard Home:
+```
+home.home → 192.168.1.154
+```
+
+**Service Management:**
+
+```bash
+# Check status
+systemctl status homepage-dashboard
+
+# View logs
+journalctl -u homepage-dashboard -f
+
+# Restart service
+sudo systemctl restart homepage-dashboard
+```
+
+**Customization:**
+
+Edit `modules/homepage.nix` to:
+- Change the title, theme, or color scheme
+- Add bookmarks
+- Modify widget layout
+- Add or remove service tiles
+- Change service categories or column counts
 
 ## File Synchronization
 

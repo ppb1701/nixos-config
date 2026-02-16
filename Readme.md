@@ -72,6 +72,11 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Configurable upstream DNS (Control D, Quad9)
   - DNSSEC enabled for security
   - Web UI accessible via Nginx reverse proxy (http://adguard.home)
+- **Homepage Dashboard:** Centralized service dashboard
+  - Auto-discovers enabled services via NixOS module system
+  - Real-time CPU, memory, and disk usage widgets
+  - Dark theme with organized categories (Network, Services, Monitoring)
+  - Web UI accessible at http://home.home
 - **Syncthing:** Cross-platform file synchronization
   - Works with Windows, macOS, Linux, Android
   - Private device configuration
@@ -170,6 +175,7 @@ See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and conf
 
 - **Modular Configuration:** Services organized in logical modules
   - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, NoteDiscovery)
+  - `homepage.nix` - Homepage Dashboard (auto-discovers enabled services, system resource widgets)
   - `nginx-virtualhosts.nix` - Nginx reverse proxy virtual hosts (split out for readability)
   - `monitoring.nix` - Complete monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
   - `backups.nix` - Restic backup configuration
@@ -536,6 +542,7 @@ To access services via clean URLs (adguard.home, syncthing.home, etc.), configur
 
 ```
 adguard.home       → 192.168.1.154
+home.home          → 192.168.1.154
 syncthing.home     → 192.168.1.154
 search.home        → 192.168.1.154
 links.home         → 192.168.1.154
@@ -564,7 +571,7 @@ cloud.home         → 192.168.1.154
 Add to `/etc/hosts` on each client device:
 
 ```
-192.168.1.154  adguard.home syncthing.home search.home links.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home cloud.home
+192.168.1.154  adguard.home home.home syncthing.home search.home links.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home cloud.home
 ```
 
 #### Other Services
@@ -624,6 +631,7 @@ nixos-config/
 ├── setup.config.sh                # Configuration extraction script
 ├── modules/                       # Service modules
 │   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, etc.)
+│   ├── homepage.nix              # Homepage Dashboard (service landing page with system monitoring)
 │   ├── nginx-virtualhosts.nix    # Nginx reverse proxy virtual hosts (split out for readability)
 │   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
 │   ├── backups.nix               # Restic backup configuration (Vaultwarden, Nextcloud DB, Linkwarden, private configs)
