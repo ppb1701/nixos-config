@@ -8,6 +8,7 @@
   tailscaleIP2 = "Your_Tailscale_IP2";
   tailscaleHostname2 = "Your_Tailscale_Hostname2";
   grafanaPassword = "CHANGE_ME_TO_STRONG_PASSWORD";
+  grafanaSecretKey = "CHANGE_ME_TO_A_RANDOM_SECRET";
   searxSecret = "CHANGE_ME_TO_RANDOM_SECRET";  # openssl rand -hex 32
   linkwardenNextAuthSecret = "CHANGE_ME_TO_STRONG_PASSWORD";  # openssl rand -base64 32
   linkwardenDbPassword = "CHANGE_ME_TO_STRONG_PASSWORD";  # openssl rand -hex 32

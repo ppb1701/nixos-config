@@ -155,71 +155,78 @@
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
 
- shellAliases = {
+shellAliases = {
    # Help - List all custom aliases
    help = ''
      echo "
-╔════════════════════════════════════════════════════════════╗
-║                    NIXOS CUSTOM ALIASES                    ║
-╠════════════════════════════════════════════════════════════╣
-║ SYSTEM MANAGEMENT:                                         ║
-║   rebuild    - Rebuild and switch to new config            ║
-║   test       - Test new config without switching           ║
-║   rollback   - Rollback to previous generation             ║
-║   update     - Update system and rebuild                   ║
-║   cleanup    - Clean old generations                       ║
-║   optimize    - Deduplicate store                          ║
-╠════════════════════════════════════════════════════════════╣
-║ CONFIG EDITING:                                            ║
-║   ec         - Edit configuration.nix                      ║
-║   eh         - Edit home/ppb1701.nix                       ║
-║   ehp        - Edit modules/homepage.nix                   ║
-║   ebu        - Edit modules/backups.nix                    ║
-║   en         - Edit modules/networking.nix                 ║
-║   es         - Edit modules/services.nix                   ║
-║   esy        - Edit modules/system.nix                     ║
-║   em         - Edit modules/monitoring.nix                 ║
-║   ebios      - Edit modules/boot-bios.nix                  ║
-║   euefi      - Edit modules/boot-uefi.nix                  ║
-║   ehost      - Edit modules/nginx-virtualhosts.nix         ║
-║   ep         - Edit private/ssh-keys.nix                   ║
-║   escrt      - Edit private/secrets.nix                    ║
-║   ea         - Edit private/alertmanager.env               ║
-║   eny        - Edit private/notediscovery-config.yaml      ║
-║   enx        - Edit private/notediscovery-config.nix       ║
-╠════════════════════════════════════════════════════════════╣
-║ GIT OPERATIONS:                                            ║
-║   gc         - Git commit (add all & commit)               ║
-║   gp         - Git push                                    ║
-║   gl         - Git pull                                    ║
-║   gs         - Git status                                  ║
-╠════════════════════════════════════════════════════════════╣
-║ SERVICE MANAGEMENT:                                        ║
-║   ags/agr/agl - AdGuard status/restart/logs                ║
-║   sts/str/stl - Syncthing status/restart/logs              ║
-║   sss/ssr     - SSH status/restart                         ║
-╠════════════════════════════════════════════════════════════╣
-║ SYSTEM INFO:                                               ║
-║   sysinfo    - System information (neofetch)               ║
-║   diskspace  - Disk usage                                  ║
-║   meminfo    - Memory usage                                ║
-║   cpuinfo    - CPU information                             ║
-║   myip       - Public IP address                           ║
-║   localip    - Local IP address                            ║
-║   ports      - Open ports                                  ║
-╚════════════════════════════════════════════════════════════╝
-"
+ ╔════════════════════════════════════════════════════════════╗
+ ║                    NIXOS CUSTOM ALIASES                    ║
+ ╠════════════════════════════════════════════════════════════╣
+ ║ SYSTEM MANAGEMENT:                                         ║
+ ║   rebuild       - Rebuild and switch to new config         ║
+ ║   rebuild-safe  - Rebuild, reboot if it hangs              ║
+ ║   rebuild-boot  - Rebuild, activate on next boot           ║
+ ║   test          - Test new config without switching        ║
+ ║   rollback      - Rollback to previous generation          ║
+ ║   update        - Update system and rebuild                ║
+ ║   cleanup       - Clean old generations                    ║
+ ║   optimize      - Deduplicate store                        ║
+ ╠════════════════════════════════════════════════════════════╣
+ ║ CONFIG EDITING:                                            ║
+ ║   ec         - Edit configuration.nix                      ║
+ ║   eh         - Edit home/ppb1701.nix                       ║
+ ║   ehp        - Edit modules/homepage.nix                   ║
+ ║   ebu        - Edit modules/backups.nix                    ║
+ ║   en         - Edit modules/networking.nix                 ║
+ ║   es         - Edit modules/services.nix                   ║
+ ║   esy        - Edit modules/system.nix                     ║
+ ║   em         - Edit modules/monitoring.nix                 ║
+ ║   ebios      - Edit modules/boot-bios.nix                  ║
+ ║   euefi      - Edit modules/boot-uefi.nix                  ║
+ ║   ehost      - Edit modules/nginx-virtualhosts.nix         ║
+ ║   ep         - Edit private/ssh-keys.nix                   ║
+ ║   escrt      - Edit private/secrets.nix                    ║
+ ║   ea         - Edit private/alertmanager.env               ║
+ ║   eny        - Edit private/notediscovery-config.yaml      ║
+ ║   enx        - Edit private/notediscovery-config.nix       ║
+ ╠════════════════════════════════════════════════════════════╣
+ ║ GIT OPERATIONS:                                            ║
+ ║   gc         - Git commit (add all & commit)               ║
+ ║   gp         - Git push                                    ║
+ ║   gl         - Git pull                                    ║
+ ║   gs         - Git status                                  ║
+ ╠════════════════════════════════════════════════════════════╣
+ ║ SERVICE MANAGEMENT:                                        ║
+ ║   ags/agr/agl  - AdGuard status/restart/logs               ║
+ ║   sts/str/stl  - Syncthing status/restart/logs             ║
+ ║   sss/ssr      - SSH status/restart                        ║
+ ║   ncs/ncr/ncl  - Nextcloud status/restart/logs             ║
+ ║   rds/rdr/rdl  - Redis status/restart/logs                 ║
+ ║   cos/cor/col  - Collabora status/restart/logs             ║
+ ║   ncocc        - Run nextcloud-occ command                 ║
+ ╠════════════════════════════════════════════════════════════╣
+ ║ SYSTEM INFO:                                               ║
+ ║   sysinfo    - System information (neofetch)               ║
+ ║   diskspace  - Disk usage                                  ║
+ ║   meminfo    - Memory usage                                ║
+ ║   cpuinfo    - CPU information                             ║
+ ║   myip       - Public IP address                           ║
+ ║   localip    - Local IP address                            ║
+ ║   ports      - Open ports                                  ║
+ ╚════════════════════════════════════════════════════════════╝
+ "
    '';
-
+ 
    # System management (with auto-reload!)
    rebuild = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rebuild-boot = "nh os boot -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
+   rebuild-safe = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix || sudo reboot -f";
    test = "nh os test -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
    cleanup = "nh clean -v all";
    optimize = "sudo nix-store --optimize";
-
+ 
    # Config editing
    ec = "sudo micro /etc/nixos/configuration.nix";
    eh = "sudo micro /etc/nixos/home/ppb1701.nix";
@@ -236,16 +243,16 @@
    ebios = "sudo micro /etc/nixos/modules/boot-bios.nix";
    euefi = "sudo micro /etc/nixos/modules/boot-uefi.nix";
    ehost = "sudo micro /etc/nixos/modules/nginx-virtualhosts.nix";
-   ea ="sudo micro /etc/nixos/private/alertmanager.env";
-   eny ="sudo micro /etc/nixos/private/notediscovery-config.yaml";
-   enx ="sudo micro /etc/nixos/private/notediscovery-config.nix";
-
+   ea = "sudo micro /etc/nixos/private/alertmanager.env";
+   eny = "sudo micro /etc/nixos/private/notediscovery-config.yaml";
+   enx = "sudo micro /etc/nixos/private/notediscovery-config.nix";
+ 
    # Git operations
    gc = "cd /etc/nixos && sudo git add . && sudo git commit";
    gp = "cd /etc/nixos && sudo git push";
    gl = "cd /etc/nixos && sudo git pull";
    gs = "cd /etc/nixos && sudo git status";
-
+ 
    # Service management
    ags = "sudo systemctl status adguardhome";
    agr = "sudo systemctl restart adguardhome";
@@ -255,7 +262,17 @@
    stl = "sudo journalctl -u syncthing@ppb1701 -f";
    sss = "sudo systemctl status sshd";
    ssr = "sudo systemctl restart sshd";
-
+   ncs = "sudo systemctl status phpfpm-nextcloud";
+   ncr = "sudo systemctl restart phpfpm-nextcloud";
+   ncl = "sudo journalctl -u phpfpm-nextcloud -f";
+   ncocc = "sudo nextcloud-occ";
+   rds = "sudo systemctl status redis-nextcloud";
+   rdr = "sudo systemctl restart redis-nextcloud";
+   rdl = "sudo journalctl -u redis-nextcloud -f";
+   cos = "sudo systemctl status collabora-online";
+   cor = "sudo systemctl restart collabora-online";
+   col = "sudo journalctl -u collabora-online -f";
+ 
    # System info
    sysinfo = "neofetch";
    diskspace = "df -h";
@@ -264,7 +281,7 @@
    myip = "curl -s ifconfig.me";
    localip = "ip -4 addr show enp1s0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'";
    ports = "sudo ss -tulpn";
-
+ 
    # Utilities
    ll = "ls -lah";
    la = "ls -A";

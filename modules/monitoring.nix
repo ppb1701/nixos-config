@@ -340,6 +340,7 @@ in
       security = {
         admin_user = "admin";
         admin_password = (import /etc/nixos/private/secrets.nix).grafanaPassword;
+        secret_key = (import /etc/nixos/private/secrets.nix).grafanaSecretKey;
       };
     };
 

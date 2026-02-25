@@ -282,6 +282,7 @@ in
     https = false;
 
     settings = {
+      "allow_local_remote_servers" = true;
       "auth.bruteforce.protection.enabled" = false;
       "ratelimit.protection.enabled" = false;
       "overwriteprotocol" = "http";
@@ -297,6 +298,10 @@ in
       "loglevel" = 2;
     };
 
+    extraApps = {
+          inherit (config.services.nextcloud.package.packages.apps) richdocuments;
+        };
+        
     autoUpdateApps.enable = true;
     autoUpdateApps.startAt = "05:00:00";
   };
@@ -306,6 +311,24 @@ in
     { addr = "0.0.0.0"; port = 8280; }
     { addr = "[::]"; port = 8280; }
   ];
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COLLABORA ONLINE - DOCUMENT EDITING ENGINE FOR NEXTCLOUD
+  # ═══════════════════════════════════════════════════════════════════════════
+    services.collabora-online = {
+      enable = true;
+      port = 9980;
+      settings = {
+        ssl."@enable" = false;
+        ssl."@termination" = false;
+        ssl.enable = false;
+        ssl.termination = false;
+        server_name = "collabora.home";
+        storage.wopi."@allow" = true;
+        storage.wopi.alias_groups."@mode" = "groups";
+        storage.wopi.host = [ "cloud\\.home" "127\\.0\\.0\\.1" ];
+      };
+    };
 
   # ═══════════════════════════════════════════════════════════════════════════
   # NGINX - REVERSE PROXY FOR CLEAN LOCAL URLS
