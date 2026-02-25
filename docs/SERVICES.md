@@ -16,6 +16,9 @@ Your configuration already includes these services (configured in `modules/servi
 - **ntfy** - Self-hosted push notifications (port 2586)
 - **SearX** - Self-hosted metasearch engine (port 8888)
 - **Linkwarden** - Self-hosted bookmark manager (port 8230)
+- **Nextcloud** - Private cloud storage and collaboration (port 8280, via Nginx at cloud.home)
+- **Collabora Online** - Document editing engine for Nextcloud (port 9980, via Nginx at collabora.home)
+- **Vaultwarden** - Self-hosted password manager via Tailscale Funnel (port 8222)
 
 Plus desktop environment (LXQT), SSH server, and system utilities.
 
@@ -45,7 +48,7 @@ The dashboard automatically shows only services that are enabled in your configu
 | Category | Services Shown |
 |---|---|
 | **Network** | AdGuard Home, Tailscale |
-| **Services** | Syncthing, Nextcloud, Vaultwarden, Linkwarden, SearX, NoteDiscovery, Gitea |
+| **Services** | Syncthing, Nextcloud, Collabora Online, Vaultwarden, Linkwarden, SearX, NoteDiscovery, Gitea |
 | **Monitoring** | Grafana, Prometheus, Alertmanager, ntfy, Loki |
 
 **Access:**
@@ -1143,6 +1146,7 @@ services.grafana = {
     security = {
       admin_user = "admin";
       admin_password = (import /etc/nixos/private/secrets.nix).grafanaPassword;
+      secret_key = (import /etc/nixos/private/secrets.nix).grafanaSecretKey;
     };
   };
 };
@@ -1169,6 +1173,7 @@ services.grafana = {
    ```nix
    {
      grafanaPassword = "your-secure-password-here";
+     grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
    }
    ```
 
@@ -1462,6 +1467,7 @@ sudo micro /etc/nixos/private/secrets.nix
 # Add:
 {
   grafanaPassword = "your-secure-password";
+  grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
 }
 
 # Create alertmanager environment file
@@ -1565,8 +1571,9 @@ Loki (in Grafana Explore):
 Added to `home/ppb1701.nix`:
 
 ```bash
-escrt    # Edit /etc/nixos/private/secrets.nix (Grafana password)
+escrt    # Edit /etc/nixos/private/secrets.nix (Grafana password, secret key)
 ea       # Edit /etc/nixos/private/alertmanager.env (SMTP settings)
+em       # Edit /etc/nixos/modules/monitoring.nix
 ```
 
 ### Firewall Configuration
@@ -1951,7 +1958,7 @@ Nextcloud is already configured in `modules/services.nix` and provides a complet
 **Already Included:** Nextcloud is fully configured with PostgreSQL database, external drive support, and integrated monitoring.
 
 **Configuration Details:**
-- **Package:** Nextcloud 31 (latest version)
+- **Package:** Nextcloud 32
 - **Access:** Via nginx reverse proxy at `http://cloud.home`
 - **Database:** PostgreSQL with automatic local creation
 - **Data Storage:** /mnt/nextcloud-data (external drive mount required)
@@ -1963,7 +1970,8 @@ Nextcloud is already configured in `modules/services.nix` and provides a complet
 - File sync and sharing with desktop/mobile clients
 - External drive support for large storage capacity
 - Calendar and contacts synchronization
-- Collaborative document editing
+- Collaborative document editing via Collabora Online (LibreOffice-based, replaces Google Docs/Office 365)
+- Richdocuments app auto-installed for Collabora integration
 - Photo management and galleries
 - Two-factor authentication support
 - Comprehensive monitoring and alerting
@@ -2161,6 +2169,128 @@ Both are included in your configuration - they serve different purposes:
 - Lower resource usage
 
 **Both can be used together!** Many users sync files between devices with Syncthing and use Nextcloud for web access and sharing.
+
+### Collabora Online (Port 9980)
+
+**Purpose:** Self-hosted document editing engine that integrates with Nextcloud as a replacement for Google Docs or Office 365
+
+Collabora Online provides LibreOffice-based collaborative document editing directly within Nextcloud's web interface. Edit documents, spreadsheets, and presentations without leaving your browser.
+
+**Already Included:** Collabora Online is configured in `modules/services.nix` and proxied via Nginx. Enabled on the main (production) branch; disabled on the VM branch and nixos2 standby/failover configurations since it requires a running Nextcloud instance.
+
+**Prerequisites:** Nextcloud must be running and accessible before configuring Collabora.
+
+**Features:**
+- Edit documents, spreadsheets, and presentations in browser
+- LibreOffice-compatible format support (DOCX, XLSX, PPTX, ODF, etc.)
+- Real-time collaborative editing
+- Integrates natively with Nextcloud via the Richdocuments app
+- No external cloud dependency
+
+**Configuration (in `modules/services.nix`):**
+
+```nix
+services.collabora-online = {
+  enable = true;
+  port = 9980;
+  settings = {
+    ssl."@enable" = false;
+    ssl."@termination" = false;
+    ssl.enable = false;
+    ssl.termination = false;
+    server_name = "collabora.home";
+    storage.wopi."@allow" = true;
+    storage.wopi.alias_groups."@mode" = "groups";
+    storage.wopi.host = [ "cloud\\.home" "127\\.0\\.0\\.1" ];
+  };
+};
+```
+
+**Setup:**
+
+1. **Collabora is auto-enabled** when `services.collabora-online.enable = true` in `modules/services.nix`.
+
+2. **The Richdocuments Nextcloud app** is automatically installed via `extraApps` in the Nextcloud configuration:
+   ```nix
+   extraApps = {
+     inherit (config.services.nextcloud.package.packages.apps) richdocuments;
+   };
+   ```
+
+3. **Configure DNS rewrite in AdGuard Home:**
+   - Open AdGuard Home → Filters → DNS rewrites
+   - Add: `collabora.home → YOUR_SERVER_IP`
+
+4. **A local hosts entry** is also configured in `modules/networking.nix`:
+   ```nix
+   networking.hosts = {
+     "127.0.0.1" = [ "collabora.home" ];
+   };
+   ```
+
+5. **Configure Collabora in Nextcloud admin settings:**
+   - Go to http://cloud.home
+   - Click your user avatar (top-right) → **Administration settings**
+   - In the left sidebar, go to **Administration** → **Office**
+   - Select **"Use your own server"**
+   - Enter the URL: `http://collabora.home`
+   - Scroll down to **"Allow list for WOPI requests"** and add: `127.0.0.1`
+   - Click **Save**
+
+6. **Rebuild:**
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+**Access:**
+- Via Nginx: http://collabora.home (used internally by Nextcloud)
+- Documents are edited inline within Nextcloud's web interface
+
+**Service Management:**
+
+```bash
+# Check status (note: service name is coolwsd, NOT collabora-online)
+cos   # alias for: sudo systemctl status coolwsd
+
+# View logs
+col   # alias for: sudo journalctl -u coolwsd -f
+
+# Restart service
+cor   # alias for: sudo systemctl restart coolwsd
+```
+
+**Important Notes:**
+
+- The systemd service is named `coolwsd.service`, **not** `collabora-online.service`
+- Collabora is stateless — no additional backups needed beyond existing Nextcloud backups
+- Resource usage: ~500MB baseline RAM, ~2.7GB added to Nix store closure (LibreOffice, fonts)
+- Access via Tailscale works automatically — split DNS resolves `collabora.home` on both LAN and Tailscale
+
+**NixOS Unstable Requirement:**
+
+The `collabora-online` package is only available on the **nixos-unstable** channel. Adding Collabora requires switching from stable to unstable. See `docs/TROUBLESHOOTING.md` for details on managing an unstable system, including package pinning and safe rebuild practices.
+
+**Troubleshooting:**
+
+**Documents won't open for editing:**
+- The service is `coolwsd`, not `collabora-online`: `systemctl status coolwsd`
+- Check that `collabora.home` resolves: `curl http://collabora.home:9980`
+- Verify Richdocuments app is enabled in Nextcloud
+- Check Nextcloud logs: `sudo tail -f /mnt/nextcloud-data/data/nextcloud.log`
+
+**502 Bad Gateway:**
+- Coolwsd may be starting with SSL enabled despite config. Both XML attributes (`ssl."@enable"`) AND inner element values (`ssl.enable`) must be set to `false`. See `docs/TROUBLESHOOTING.md` for details.
+
+**WOPI "Unauthorized host" errors:**
+- Coolwsd side: ensure `alias_groups."@mode" = "groups"` (not `"first"`)
+- Nextcloud side: the WOPI allow-list must be `127.0.0.1` (loopback), NOT the server's LAN IP — coolwsd connects from loopback
+- Ensure WOPI host patterns match your Nextcloud hostname (`cloud\.home`)
+- Verify the networking.hosts entry has `collabora.home` pointing to `127.0.0.1`
+
+**Discovery URLs showing HTTPS instead of HTTP:**
+- Add `server_name = "collabora.home"` to the Collabora settings
+
+See `docs/TROUBLESHOOTING.md` for comprehensive Collabora debug commands and additional troubleshooting.
 
 ### Samba (Network Share)
 
@@ -2478,6 +2608,7 @@ search.home        → 192.168.1.154
 links.home         → 192.168.1.154
 notes.home         → 192.168.1.154
 cloud.home         → 192.168.1.154
+collabora.home     → 192.168.1.154
 ```
 
 **Monitoring Services** (if enabled):
@@ -2503,7 +2634,7 @@ If you're not using AdGuard Home as your network DNS server, add to `/etc/hosts`
 ```bash
 # On Windows: C:\Windows\System32\drivers\etc\hosts
 # On Linux/Mac: /etc/hosts
-192.168.1.154  adguard.home syncthing.home search.home links.home notes.home cloud.home grafana.home prometheus.home alertmanager.home ntfy.home
+192.168.1.154  adguard.home syncthing.home search.home links.home notes.home cloud.home collabora.home grafana.home prometheus.home alertmanager.home ntfy.home
 ```
 
 **Access services:**
@@ -2514,6 +2645,7 @@ If you're not using AdGuard Home as your network DNS server, add to `/etc/hosts`
 - Linkwarden: http://links.home (instead of http://192.168.1.154:8230)
 - NoteDiscovery: http://notes.home (instead of http://192.168.1.154:5000)
 - Nextcloud: http://cloud.home
+- Collabora Online: http://collabora.home (used internally by Nextcloud)
 
 **Adding More Virtual Hosts:**
 
@@ -2623,8 +2755,11 @@ services.vaultwarden = {
    ```nix
    {
      grafanaPassword = "your-password";
+     grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
      tailscaleIP = "100.x.y.z";
      tailscaleHostname = "nixos.tailXXXXXX.ts.net";  # Your Tailscale hostname
+     tailscaleIP2 = "100.x.y.z";  # Secondary server Tailscale IP (if applicable)
+     tailscaleHostname2 = "nixos2.tailXXXXXX.ts.net";  # Secondary server Tailscale hostname
    }
    ```
 

@@ -55,6 +55,7 @@ This repository has two main branches serving different purposes:
 - Vaultwarden (Password manager)
 - SearX (Self-hosted search)
 - Nextcloud (Private cloud storage)
+- Collabora Online (Document editing - requires Nextcloud)
 - Linkwarden (Bookmark manager)
 
 **Services disabled in both branches:**
@@ -88,6 +89,12 @@ When deploying to production, use the `main` branch. Use `vm` for testing change
   - Calendar, contacts, and collaborative editing
   - Integrated monitoring and alerting
   - Web UI accessible at http://cloud.home
+- **Collabora Online:** Document editing engine for Nextcloud
+  - LibreOffice-based collaborative editing (replaces Google Docs/Office 365)
+  - Edit documents, spreadsheets, and presentations in browser
+  - Integrated via Richdocuments Nextcloud app
+  - Proxied via Nginx at http://collabora.home
+  - Requires nixos-unstable channel (see Troubleshooting docs for channel/pinning details)
 - **Vaultwarden:** Self-hosted password manager (Bitwarden compatible)
   - Secure password vault with 2FA support
   - Accessible remotely via Tailscale Funnel (HTTPS)
@@ -174,7 +181,7 @@ See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and conf
 ### Infrastructure Features
 
 - **Modular Configuration:** Services organized in logical modules
-  - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, NoteDiscovery)
+  - `services.nix` - Core service configurations (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, Collabora Online, SearX, Linkwarden, NoteDiscovery)
   - `homepage.nix` - Homepage Dashboard (auto-discovers enabled services, system resource widgets)
   - `nginx-virtualhosts.nix` - Nginx reverse proxy virtual hosts (split out for readability)
   - `monitoring.nix` - Complete monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
@@ -314,6 +321,7 @@ Create required private configuration files:
    ```nix
    {
      grafanaPassword = "your-secure-password-here";
+     grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
    }
    ```
 
@@ -459,8 +467,11 @@ Vaultwarden requires Tailscale for remote access via Tailscale Funnel, providing
    ```nix
    {
      grafanaPassword = "your-secure-password-here";
+     grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
      tailscaleIP = "100.x.y.z";  # Your Tailscale IP
      tailscaleHostname = "nixos.tailXXXXXX.ts.net";  # Your Tailscale hostname
+     tailscaleIP2 = "100.x.y.z";  # Secondary server Tailscale IP (if applicable)
+     tailscaleHostname2 = "nixos2.tailXXXXXX.ts.net";  # Secondary server hostname
    }
    ```
 
@@ -546,6 +557,7 @@ home.home          → 192.168.1.154
 syncthing.home     → 192.168.1.154
 search.home        → 192.168.1.154
 links.home         → 192.168.1.154
+collabora.home     → 192.168.1.154
 ```
 
 If you've also set up monitoring, knowledge management, and cloud storage services, add:
@@ -571,7 +583,7 @@ cloud.home         → 192.168.1.154
 Add to `/etc/hosts` on each client device:
 
 ```
-192.168.1.154  adguard.home home.home syncthing.home search.home links.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home cloud.home
+192.168.1.154  adguard.home home.home syncthing.home search.home links.home collabora.home grafana.home prometheus.home alertmanager.home ntfy.home notes.home cloud.home
 ```
 
 #### Other Services
@@ -580,7 +592,7 @@ See documentation for detailed guides:
 
 - `docs/SERVICES.md` - Comprehensive monitoring and alerting stack, alternative services, and integrations
 - `docs/NEXTCLOUD-SETUP.md` - Complete Nextcloud setup, troubleshooting, and iOS app configuration
-- Additional service options: Netdata, Uptime Kuma, WireGuard, Samba, Jellyfin, Navidrome, Home Assistant, Gitea, Fail2ban, Vaultwarden
+- Additional service options: Netdata, Uptime Kuma, WireGuard, Samba, Jellyfin, Navidrome, Home Assistant, Gitea, Fail2ban
 
 ## System Maintenance
 
@@ -630,7 +642,7 @@ nixos-config/
 ├── install-nixos.sh               # Automated installation script
 ├── setup.config.sh                # Configuration extraction script
 ├── modules/                       # Service modules
-│   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, SearX, Linkwarden, etc.)
+│   ├── services.nix              # Core services (AdGuard, Syncthing, Tailscale, Nginx, Nextcloud, Collabora, SearX, Linkwarden, etc.)
 │   ├── homepage.nix              # Homepage Dashboard (service landing page with system monitoring)
 │   ├── nginx-virtualhosts.nix    # Nginx reverse proxy virtual hosts (split out for readability)
 │   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
@@ -645,7 +657,7 @@ nixos-config/
 │   ├── syncthing-secrets.nix     # Syncthing settings and device IDs
 │   ├── syncthing-devices.nix     # Symlink to syncthing-secrets.nix
 │   ├── ssh-keys.nix              # SSH authorized keys
-│   ├── secrets.nix               # Service passwords (Grafana, Tailscale, SearX, Linkwarden, etc.)
+│   ├── secrets.nix               # Service passwords (Grafana, Tailscale, SearX, Linkwarden, Gitea, etc.)
 │   ├── alertmanager.env          # SMTP credentials for email alerts
 │   ├── vaultwarden.env           # Vaultwarden admin token
 │   ├── notediscovery-config.nix  # NoteDiscovery notes path
@@ -783,7 +795,7 @@ The `private-example/` directory contains template files showing the required st
 
 - Syncthing device IDs and GUI password (syncthing-secrets.nix)
 - SSH authorized keys (ssh-keys.nix)
-- Grafana admin password and Tailscale hostname (secrets.nix)
+- Grafana admin password, secret key, and Tailscale hostnames (secrets.nix)
 - Email SMTP credentials for alerting (alertmanager.env)
 - Vaultwarden admin token (vaultwarden.env)
 - NoteDiscovery configuration and password hash (notediscovery-config.nix/yaml)
@@ -833,8 +845,11 @@ sudo micro /etc/nixos/private/notediscovery-config.yaml
 # Example secrets.nix content:
 {
   grafanaPassword = "your-secure-password-here";
+  grafanaSecretKey = "your-random-secret-key";  # openssl rand -hex 32
   tailscaleIP = "100.x.y.z";
   tailscaleHostname = "nixos.tailXXXXXX.ts.net";
+  tailscaleIP2 = "100.x.y.z";  # Secondary server Tailscale IP (if applicable)
+  tailscaleHostname2 = "nixos2.tailXXXXXX.ts.net";  # Secondary server hostname
   searxSecret = "your-random-secret-key";  # openssl rand -hex 32
   linkwardenDbPassword = "your-db-password";  # openssl rand -hex 32
   linkwardenNextAuthSecret = "your-nextauth-secret";  # openssl rand -base64 32
@@ -868,23 +883,43 @@ The system includes extensive shell aliases for quick configuration editing. Run
 ```bash
 # Edit configurations quickly
 ec      # Edit configuration.nix
-es      # Edit modules/services.nix (AdGuard, Syncthing, monitoring, etc.)
+es      # Edit modules/services.nix (AdGuard, Syncthing, Collabora, etc.)
 en      # Edit modules/networking.nix
+em      # Edit modules/monitoring.nix
 esy     # Edit modules/system.nix
 eh      # Edit home/ppb1701.nix
+ehp     # Edit modules/homepage.nix
+ebu     # Edit modules/backups.nix
+ehost   # Edit modules/nginx-virtualhosts.nix
+ebios   # Edit modules/boot-bios.nix
+euefi   # Edit modules/boot-uefi.nix
 eb/eu   # Edit BIOS/UEFI configuration
-escrt   # Edit private/secrets.nix (Grafana password)
+escrt   # Edit private/secrets.nix (Grafana, Tailscale, etc.)
 ea      # Edit private/alertmanager.env (SMTP credentials)
+eny     # Edit private/notediscovery-config.yaml
+enx     # Edit private/notediscovery-config.nix
 
 # System management
-rebuild # Rebuild and switch to new config (auto-reloads shell)
-test    # Test new config without switching
-rollback# Rollback to previous generation
-update  # Update system and rebuild
+rebuild      # Rebuild and switch to new config (auto-reloads shell)
+rebuild-safe # Rebuild, auto-reboot if activation hangs (useful on unstable)
+rebuild-boot # Rebuild, activate on next boot
+test         # Test new config without switching
+rollback     # Rollback to previous generation
+update       # Update system and rebuild
+cleanup      # Clean old generations
+optimize     # Deduplicate Nix store
 
 # Service management
 ags/agr/agl # AdGuard status/restart/logs
 sts/str/stl # Syncthing status/restart/logs
+sss/ssr     # SSH status/restart
+ncs/ncr/ncl # Nextcloud status/restart/logs
+rds/rdr/rdl # Redis status/restart/logs
+cos/cor/col # Collabora status/restart/logs (service: coolwsd)
+ncocc       # Run nextcloud-occ command
+
+# Git operations (from /etc/nixos)
+gc/gp/gl/gs # commit/push/pull/status
 ```
 
 ### Adding Services to modules/services.nix
