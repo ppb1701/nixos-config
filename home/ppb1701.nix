@@ -220,7 +220,7 @@ shellAliases = {
    # System management (with auto-reload!)
    rebuild = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rebuild-boot = "nh os boot -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
-   rebuild-safe = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix || sudo reboot -f";
+   rebuild-safe = "nh os switch -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh || sudo reboot -f";
    test = "nh os test -f '<nixpkgs/nixos>' -- -I nixos-config=/etc/nixos/configuration.nix && exec zsh";
    rollback = "sudo nixos-rebuild switch --rollback && exec zsh";
    update = "sudo nixos-rebuild switch --upgrade && exec zsh";
@@ -269,9 +269,9 @@ shellAliases = {
    rds = "sudo systemctl status redis-nextcloud";
    rdr = "sudo systemctl restart redis-nextcloud";
    rdl = "sudo journalctl -u redis-nextcloud -f";
-   cos = "sudo systemctl status collabora-online";
-   cor = "sudo systemctl restart collabora-online";
-   col = "sudo journalctl -u collabora-online -f";
+   cos = "sudo systemctl status coolwsd";
+   cor = "sudo systemctl restart coolwsd";
+   col = "sudo journalctl -u coolwsd -f";
  
    # System info
    sysinfo = "neofetch";
