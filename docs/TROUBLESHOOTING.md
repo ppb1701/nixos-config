@@ -925,6 +925,211 @@ VMs often use NAT networking (10.0.2.x) or different subnets than your physical 
    - `eth0`, `eth1` (legacy names)
    - `eno1`, `eno2` (onboard ethernet)
 
+## NixOS Unstable Channel (Required by Collabora)
+
+### Why Unstable?
+
+The `collabora-online` NixOS module is only available on the **nixos-unstable** channel. Adding Collabora required switching from stable to unstable, which means the entire system pulls packages from the unstable branch.
+
+**Current channel setup:**
+```bash
+# Check your channels
+sudo nix-channel --list
+
+# Expected output:
+# nixos https://nixos.org/channels/nixos-unstable
+# home-manager https://github.com/nix-community/home-manager/archive/master.tar.gz
+```
+
+**Important:** When running unstable, the Home Manager channel must use `master` (not a release branch like `release-25.05`).
+
+### Risks of Running Unstable
+
+- Packages update more frequently and may introduce regressions
+- Services may change configuration options between updates
+- `nixos-rebuild switch` can occasionally hang during service activation after large updates — a hard reboot resolves this, all services come up clean on next boot
+- Redis (a Nextcloud dependency) has stopped unexpectedly after system updates — if Nextcloud goes down, check Redis first: `sudo systemctl start redis-nextcloud`
+
+### Partially Stabilizing an Unstable System
+
+If a specific package breaks on unstable, you can pin individual packages to a known-good nixpkgs commit:
+
+```nix
+# In configuration.nix or a module file
+let
+  # Pin to a specific nixpkgs commit where the package works
+  pinnedPkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/COMMIT_HASH.tar.gz";
+    sha256 = "SHA256_HASH";
+  }) { config.allowUnfree = true; };
+in
+{
+  # Use the pinned version of a specific package
+  environment.systemPackages = [
+    pinnedPkgs.some-broken-package  # Pinned to stable commit
+    pkgs.everything-else            # From unstable channel
+  ];
+}
+```
+
+**Finding a good commit to pin to:**
+1. Go to https://github.com/NixOS/nixpkgs/commits/nixos-unstable
+2. Find a commit from before the breakage
+3. Use its full hash in the `fetchTarball` URL
+4. Get the sha256 by setting it to `""` first, then copying from the error message
+
+### Safe Rebuild Practices on Unstable
+
+The `rebuild-safe` alias handles the case where `nixos-rebuild switch` hangs on service activation:
+
+```bash
+rebuild-safe  # Rebuilds, auto-reboots if activation hangs
+```
+
+Before major channel updates:
+```bash
+# Update channels
+sudo nix-channel --update
+
+# Test build first (doesn't activate)
+sudo nixos-rebuild build
+
+# If build succeeds, switch
+sudo nixos-rebuild switch
+
+# If switch hangs, hard reboot — services will start cleanly
+```
+
+### Reverting to a Previous Generation
+
+If an update breaks things badly:
+```bash
+# List available generations
+sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+
+# Roll back to previous generation
+sudo nixos-rebuild switch --rollback
+
+# Or use the alias
+rollback
+```
+
+You can also select a previous generation from the boot menu (GRUB/systemd-boot) if the system won't start.
+
+## Collabora Online Issues
+
+### Service Name is `coolwsd`, Not `collabora-online`
+
+The systemd service is named `coolwsd.service`, not `collabora-online.service`:
+
+```bash
+# Correct
+sudo systemctl status coolwsd
+sudo journalctl -u coolwsd -f
+
+# Wrong — this won't find anything
+sudo systemctl status collabora-online
+```
+
+### 502 Bad Gateway from Nginx
+
+**Root cause:** Coolwsd starts with SSL enabled despite the NixOS config setting `ssl.enable = false`.
+
+The NixOS module generates XML config, and coolwsd has both XML **attributes** and **inner element values** for SSL settings. Both must be explicitly set to false:
+
+```nix
+settings = {
+  # XML attributes (what NixOS module primarily sets)
+  ssl."@enable" = false;
+  ssl."@termination" = false;
+  # Inner element values (what coolwsd actually reads)
+  ssl.enable = false;
+  ssl.termination = false;
+};
+```
+
+**Diagnosis:**
+```bash
+# Find the actual config file coolwsd is using
+sudo cat /proc/$(pgrep -f coolwsd | head -1)/cmdline | tr '\0' ' '
+
+# Check what SSL settings are in the generated config
+sudo grep -A3 "termination\|ssl enable" /nix/store/<hash>-coolwsd.xml
+```
+
+### Discovery URLs Serving HTTPS Instead of HTTP
+
+If documents fail to load and the discovery endpoint returns HTTPS URLs:
+
+```bash
+# Check discovery URLs (should show http://, not https://)
+curl -s http://127.0.0.1:9980/hosting/discovery | grep -o 'src="[^"]*"' | head -3
+```
+
+**Fix:** Add `server_name` to the Collabora settings:
+```nix
+settings = {
+  server_name = "collabora.home";
+  # ... other settings
+};
+```
+
+### Unauthorized WOPI Host Errors
+
+Two separate issues can cause the same "Unauthorized WOPI host" error:
+
+**1. Coolwsd side — alias_groups mode:**
+
+The default `mode="first"` only allows one host pattern. Change to `"groups"`:
+```nix
+storage.wopi.alias_groups."@mode" = "groups";
+storage.wopi.host = [ "cloud\\.home" "127\\.0\\.0\\.1" ];
+```
+
+**2. Nextcloud side — WOPI allow-list IP:**
+
+Coolwsd connects to Nextcloud from **loopback** (`127.0.0.1`), NOT from the server's LAN IP. In Nextcloud admin:
+- Settings → Office → Allow list for WOPI requests → `127.0.0.1`
+
+### Redis Stops After System Update (Takes Nextcloud Down)
+
+Redis is a dependency of Nextcloud. If Redis stops, Nextcloud stops working:
+
+```bash
+# Check if Redis is running
+sudo systemctl status redis-nextcloud
+
+# Restart Redis (Nextcloud will recover automatically)
+sudo systemctl start redis-nextcloud
+
+# Check Nextcloud is back
+sudo systemctl status phpfpm-nextcloud
+```
+
+### Useful Collabora Debug Commands
+
+```bash
+# Service status and logs
+sudo systemctl status coolwsd
+sudo journalctl -u coolwsd -f --no-pager
+
+# Check config file path
+sudo cat /proc/$(pgrep -f coolwsd | head -1)/cmdline | tr '\0' ' '
+
+# Verify discovery endpoint (URLs should be http://)
+curl -s http://127.0.0.1:9980/hosting/discovery | grep -o 'src="[^"]*"' | head -3
+
+# Check coolwsd is listening on port 9980
+sudo ss -tulpn | grep 9980
+
+# Watch WOPI-related logs
+sudo journalctl -u coolwsd -f --no-pager | grep -i "wopi\|unauth\|host"
+
+# Clear cached Nextcloud Office config (nuclear option)
+sudo nextcloud-occ config:app:delete richdocuments wopi_url
+sudo nextcloud-occ config:app:delete richdocuments public_wopi_url
+```
+
 ## Getting More Help
 
 If you're still having issues:
