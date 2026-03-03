@@ -144,6 +144,7 @@
     "d /var/local/vaultwarden 0755 vaultwarden vaultwarden -"
     "d /var/local/vaultwarden/backup 0755 vaultwarden vaultwarden -"
     "d /var/local/backups2 0755 ppb1701 syncthing -"
+    "d /var/local/clientbackups 0755 ppb1701 syncthing -"
     "d /var/cache/linkwarden 0755 linkwarden linkwarden -"
     "d /var/cache/linkwarden/cache 0755 linkwarden linkwarden -"
   ];
@@ -183,6 +184,7 @@
           "/var/lib/obsidian"
           "/var/local/backups"
           "/var/local/backups2"
+          "/var/local/clientbackups"
           "/mnt/nextcloud-data"
         ];
       };
