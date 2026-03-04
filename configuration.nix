@@ -22,6 +22,7 @@ in
     "${modulesDir}/system.nix"
     "${modulesDir}/boot-uefi.nix"
     "${modulesDir}/backups.nix"
+    "${modulesDir}/timemachine.nix"
     <home-manager/nixos>
   ];
 

@@ -19,6 +19,7 @@ Your configuration already includes these services (configured in `modules/servi
 - **Nextcloud** - Private cloud storage and collaboration (port 8280, via Nginx at cloud.home)
 - **Collabora Online** - Document editing engine for Nextcloud (port 9980, via Nginx at collabora.home)
 - **Vaultwarden** - Self-hosted password manager via Tailscale Funnel (port 8222)
+- **Samba + Time Machine** - macOS Time Machine target over SMB *(disabled — failover-ready, primary on nixos2)*
 
 Plus desktop environment (LXQT), SSH server, and system utilities.
 
@@ -2292,75 +2293,53 @@ The `collabora-online` package is only available on the **nixos-unstable** chann
 
 See `docs/TROUBLESHOOTING.md` for comprehensive Collabora debug commands and additional troubleshooting.
 
-### Samba (Network Share)
+### Samba + Time Machine
 
-Windows-compatible file sharing.
+macOS Time Machine target over SMB. Configured in `modules/timemachine.nix`.
 
-**Create `modules/samba.nix`:**
+**Status:** DISABLED (primary instance on nixos2, failover-ready here)
 
-```nix
-{ config, pkgs, ... }:
+The Time Machine share is backed by `/mnt/nextcloud-data/timemachine` (setgid, syncthing group). A dedicated `tmuser` system account handles Samba authentication.
 
-{
-  services.samba = {
-    enable = true;
-    securityType = "user";
-    extraConfig = ''
-      workgroup = WORKGROUP
-      server string = NixOS Server
-      netbios name = nixos
-      security = user
-      hosts allow = 192.168.1. localhost
-      hosts deny = 0.0.0.0/0
-      guest account = nobody
-      map to guest = bad user
-    '';
-
-    shares = {
-      public = {
-        path = "/srv/samba/public";
-        browseable = "yes";
-        "read only" = "no";
-        "guest ok" = "yes";
-        "create mask" = "0644";
-        "directory mask" = "0755";
-      };
-
-      private = {
-        path = "/srv/samba/private";
-        browseable = "yes";
-        "read only" = "no";
-        "guest ok" = "no";
-        "valid users" = "youruser";
-        "create mask" = "0644";
-        "directory mask" = "0755";
-      };
-    };
-  };
-
-  networking.firewall.allowedTCPPorts = [ 139 445 ];
-  networking.firewall.allowedUDPPorts = [ 137 138 ];
-}
-```
-
-**Create directories:**
+#### To enable for failover
 
 ```bash
-sudo mkdir -p /srv/samba/public /srv/samba/private
-sudo chown -R youruser:users /srv/samba
+# 1. Edit modules/timemachine.nix — set both to true:
+services.samba.enable = true;
+services.samba-wsdd.enable = true;
+
+# 2. Add Samba ports to modules/networking.nix:
+#    allowedTCPPorts: 139, 445
+#    allowedUDPPorts: 137, 138, 5353
+
+# 3. Rebuild
+sudo nixos-rebuild switch
+
+# 4. Set Samba password for tmuser (run once, survives rebuilds)
+sudo smbpasswd -a tmuser
+
+# 5. Add a DNS rewrite in AdGuard Home if needed
 ```
 
-**Set Samba password:**
+#### Connecting from macOS
+
+1. **System Settings → General → Time Machine → Add Backup Disk**
+2. Click **Network** and the server should appear automatically (via samba-wsdd/mDNS)
+3. Or connect manually: **Finder → Go → Connect to Server → `smb://nixos.local`**
+4. Authenticate with `tmuser` and the password set via `smbpasswd`
+5. Select the `timemachine` share as the backup destination
+
+#### Share quota
+
+The share cap is `1500G` (`fruit:time machine max size`). Adjust in `modules/timemachine.nix` before enabling.
+
+#### Service management
 
 ```bash
-sudo smbpasswd -a youruser
+systemctl status samba        # Samba daemon
+systemctl status samba-wsdd   # WS-Discovery (Finder auto-discovery)
+journalctl -u samba -f        # Samba logs
 ```
-
-**Access:**
-
-- **Windows:** `\\192.168.1.154\public`
-- **Mac:** `smb://192.168.1.154/public`
-- **Linux:** `smb://192.168.1.154/public`
 
 ## Media Services
 
@@ -2933,6 +2912,16 @@ The backup system uses **Restic** for encrypted, deduplicated backups with autom
 
 **Backup Repository:** `/var/local/backups/restic`
 **Password File:** `/etc/nixos/private/restic-password`
+
+#### Backup Path Layout
+
+| Path | Purpose |
+|------|---------|
+| `/var/local/backups/restic` | Local Restic repo — backups for services on this machine |
+| `/var/local/backups2` | Restic repo from **nixos2** — synced here via Syncthing for cross-machine redundancy |
+| `/var/local/clientbackups` | Restic repos from **client machines** (Mac, etc.) — synced here via Syncthing |
+
+`/var/local/backups2` and `/var/local/clientbackups` are owned by `ppb1701:syncthing` and included in Syncthing's `ReadWritePaths` (configured in `modules/system.nix`). This means the primary server receives backup repositories from other machines over Syncthing, giving all machine backups a single home without a separate off-site target.
 
 ### Backup Jobs
 
