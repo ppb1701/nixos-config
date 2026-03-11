@@ -22,6 +22,10 @@ in
 
       dns = {
         bind_hosts = [ "0.0.0.0" ];
+        # bind_hosts fix: if AdGuard conflicts with virbr0 (libvirt NAT bridge),
+        # restrict AdGuard to specific interfaces instead of 0.0.0.0.
+        # Set to your machine's actual IPs, e.g.:
+        # bind_hosts = [ "YOUR_LAN_IP" "127.0.0.1" "YOUR_TAILSCALE_IP" ];
         port = 53;
 
         upstream_dns = [

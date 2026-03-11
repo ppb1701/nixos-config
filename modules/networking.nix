@@ -86,7 +86,8 @@
       2586    # ntfy
       9090    # Prometheus (optional - can access via nginx)
       9205    #Prometheus Nextcloud
-      #8888    #SearX
+      #8888   #SearX
+      #16509  # libvirtd API — uncomment when enabling VM support
     ];
 
     allowedUDPPorts = [
@@ -95,7 +96,7 @@
       21027   # Syncthing discovery
     ];
     # Trust Tailscale interface
-    trustedInterfaces = [ "tailscale0" "docker0" ];
+    trustedInterfaces = [ "tailscale0" "docker0" ]; # "virbr0" ];  # libvirt NAT bridge — uncomment when enabling VM support
     
     # Required for Tailscale NAT traversal
     checkReversePath = "loose";

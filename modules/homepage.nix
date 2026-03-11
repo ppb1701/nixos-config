@@ -185,6 +185,16 @@ in
               };
             }
           ]) ++
+           (lib.optionals config.virtualisation.libvirtd.enable [
+                      {
+                        "ISO Builder VM" = {
+                          description = "NixOS ISO build VM";
+                          icon = "mdi-virtual-machine";
+                          href = "http://nixos2.home:16509";
+                          ping = "http://127.0.0.1:16509";
+                        };
+                      }
+                    ]) ++
           (lib.optionals config.services.loki.enable [
             {
               "Loki" = {

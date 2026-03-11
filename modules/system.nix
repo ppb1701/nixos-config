@@ -99,6 +99,12 @@
   # ═══════════════════════════════════════════════════════════════════════════
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  nix.nixPath = [
+    "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos"
+    "home-manager=https://github.com/nix-community/home-manager/archive/master.tar.gz"
+    "/nix/var/nix/profiles/per-user/root/channels"
+  ];
+
   virtualisation.podman.enable = true;
 
   virtualisation.oci-containers.backend = "podman";
