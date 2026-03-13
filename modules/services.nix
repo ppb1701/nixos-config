@@ -3,10 +3,6 @@ let
   secrets = import /etc/nixos/private/secrets.nix;
 in
 {
-  imports = [
-    ./nginx-virtualhosts.nix
-    ./homepage.nix
-  ];
 
   # ═══════════════════════════════════════════════════════════════════════════
   # ADGUARD HOME - DNS FILTERING AND AD BLOCKING
@@ -124,6 +120,72 @@ in
       };
 
    # ═══════════════════════════════════════════════════════════════════════════
+  # VNC / NOVNC - Remote Desktop Access
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # x11vnc - connects to the running LXQT/X11 session
+  # Listens only on localhost, accessed via noVNC reverse proxy
+  systemd.services.x11vnc = {
+    enable = true;
+    description = "x11vnc VNC Server";
+    after = [ "display-manager.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.x11vnc}/bin/x11vnc -display :0 -auth /run/lightdm/root/:0 -forever -noxdamage -repeat -rfbauth /etc/nixos/private/vncpasswd -rfbport 5900 -shared -localhost";
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
+  };
+
+  systemd.services.novnc = {
+    enable = true;
+    description = "noVNC Web Client";
+    after = [ "x11vnc.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.python3Packages.websockify}/bin/websockify --web ${pkgs.novnc}/share/webapps/novnc localhost:6080 localhost:5900";
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
+  };
+
+   # ═══════════════════════════════════════════════════════════════════════════
+  # Samba
+  # ═══════════════════════════════════════════════════════════════════════════
+  services.samba = {
+    enable = false; #enable for samba
+    settings = {
+      global = {
+        "workgroup" = "WORKGROUP";
+        "server string" = "nixos2";
+        "security" = "user";
+        "server role" = "standalone server";
+        "fruit:metadata" = "stream";
+        "fruit:model" = "MacSamba";
+        "fruit:posix_rename" = "yes";
+        "fruit:veto_appledouble" = "no";
+        "fruit:wipe_intentionally_left_blank_rfork" = "yes";
+        "fruit:delete_empty_adfiles" = "yes";
+      };
+      isos = {
+              "path"           = "/mnt/nextcloud-data/isos";
+              "comment"        = "NixOS ISO builds";
+              "browseable"     = "yes";
+              "writable"       = "yes";
+              "valid users"    = "ppb1701";
+              "create mask"    = "0644";
+              "directory mask" = "0755";
+              "vfs objects"    = "catia";
+            };
+    };
+  };
+
+  # Makes the share discoverable in Finder without manual Connect to Server
+  services.samba-wsdd.enable = true;
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # GITEA - GIT HOSTING (PRIMARY INSTANCE)
   # ═══════════════════════════════════════════════════════════════════════════
   services.gitea = {

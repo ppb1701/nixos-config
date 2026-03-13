@@ -45,6 +45,7 @@
   environment.etc."nixos/modules/timemachine.nix".source = ./modules/timemachine.nix;
   environment.etc."nixos/modules/nginx-virtualhosts.nix".source = ./modules/nginx-virtualhosts.nix;
   environment.etc."nixos/modules/homepage.nix".source = ./modules/homepage.nix;
+  environment.etc."nixos/modules/vm.nix".source = ./modules/vm.nix;
 
   # Copy home directory files
   environment.etc."nixos/home/ppb1701.nix".source = ./home/ppb1701.nix;

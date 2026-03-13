@@ -91,6 +91,16 @@ in
               };
             }
           ]) ++
+          (lib.optionals (config.systemd.services ? x11vnc) [
+            {
+              "Remote Desktop" = {
+                description = "noVNC remote desktop";
+                href = "http://vnc.home/vnc.html";
+                icon = "mdi-monitor-screenshot";
+                ping = "http://127.0.0.1:6080";
+              };
+            }
+          ]) ++
           (lib.optionals config.services.vaultwarden.enable [
             {
               "Vaultwarden" = {

@@ -28,6 +28,29 @@
               };
             };
 
+      # noVNC Remote Desktop
+      "vnc.home" = {
+        locations."/" = {
+          proxyPass = "http://localhost:6080";
+          proxyWebsockets = true;  # required - noVNC uses websockets
+          extraConfig = ''
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+          '';
+        };
+      };
+       # noVNC Remote Desktop
+      #"vnc2.home" = {
+      #  locations."/" = {
+      #    proxyPass = "http://localhost:6080";
+      #    proxyWebsockets = true;  # required - noVNC uses websockets
+      #    extraConfig = ''
+      #      proxy_read_timeout 3600s;
+      #      proxy_send_timeout 3600s;
+      #    '';
+      #  };
+      #};
+
        #"git.home" = {
         # forceSSL = true; # Set to true if you have ACME/Certs setup
         # enableACME = true;

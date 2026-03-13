@@ -45,9 +45,6 @@
     };
   };
 
-  # Makes the share discoverable in Finder without manual Connect to Server
-  services.samba-wsdd.enable = false;
-
   # ═══════════════════════════════════════════════════════════════════════════
   # TIME MACHINE USER
   # ═══════════════════════════════════════════════════════════════════════════

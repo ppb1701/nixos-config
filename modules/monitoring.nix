@@ -234,9 +234,10 @@ in
         };
         static_configs = [{
           targets = lib.flatten [
-            (lib.optional (config.services.syncthing.enable) "http://127.0.0.1:8384")
+            (lib.optional config.services.syncthing.enable "http://127.0.0.1:8384")
             (lib.optional (config.services.adguardhome.enable or false) "http://127.0.0.1:3000")
             (lib.optional (config.services.vaultwarden.enable or false) "https://${secrets.tailscaleHostname}")
+            (lib.optional (config.systemd.services ? x11vnc) "http://127.0.0.1:6080")
           ];
         }];
         relabel_configs = [

@@ -19,11 +19,16 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    "${modulesDir}/networking.nix"
-    "${modulesDir}/services.nix"
-    "${modulesDir}/system.nix"
-    "${modulesDir}/monitoring.nix"
-    "${modulesDir}/boot-bios.nix"  # ← BIOS boot configuration
+    /etc/nixos/modules/networking.nix
+    /etc/nixos/modules/services.nix
+    /etc/nixos/modules/monitoring.nix
+    /etc/nixos/modules/system.nix
+    /etc/nixos/modules/timemachine.nix
+    /etc/nixos/modules/nginx-virtualhosts.nix
+    /etc/nixos/modules/vm.nix
+    /etc/nixos/modules/backups.nix
+    /etc/nixos/modules/homepage.nix
+    /etc/nixos/modules/boot-uefi.nix
     <home-manager/nixos>
   ];
 
