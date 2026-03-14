@@ -29,6 +29,12 @@ sudo qemu-img create -f qcow2 /mnt/nextcloud-data/vms/iso-builder.qcow2 40G
 packages are cached; run `sudo nix-collect-garbage -d` inside the VM
 periodically if space gets tight.
 
+**Note on disk location:** If you skip this step and let virt-manager create the
+disk, it will land in the default libvirt pool at
+`/var/lib/libvirt/images/nixos-25.11.qcow2` instead of the SSD path above.
+This works fine — the root filesystem is covered by the existing
+`DiskSpaceWarning` Prometheus alert. To verify: `sudo virsh domblklist iso-builder`
+
 ---
 
 ## Step 2 — Install the VM

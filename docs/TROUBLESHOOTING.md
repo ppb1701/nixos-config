@@ -348,6 +348,52 @@ meminfo    # Check memory usage
 
 ## ISO Build Issues
 
+### Missing Modules Cause Install Failure (`is too short to be a valid store path`)
+
+**Symptom:**
+```
+'nginx-virtualhosts.nix' is too short to be a valid store path
+```
+or the installed system fails to rebuild with a similar error after first boot.
+
+**Cause:** `iso-config.nix` lists every module file explicitly in `environment.etc`. If a new module is added to the repo but not added to that list, it won't be on the ISO. The install script copies whichever `configuration-uefi.nix` or `configuration-bios.nix` it was given, and if that config's imports list references a module that wasn't shipped on the ISO, evaluation fails.
+
+A secondary cause: if a module uses a relative import like `./nginx-virtualhosts.nix` instead of an absolute path, Nix lazy evaluation may silently skip it while the referencing service is disabled. The moment evaluation order changes or the file is needed, it blows up with the store path error.
+
+**Fix:**
+1. Ensure every module file referenced in any imports block is also listed in `iso-config.nix`:
+   ```nix
+   environment.etc."nixos/modules/timemachine.nix".source  = ./modules/timemachine.nix;
+   environment.etc."nixos/modules/nginx-virtualhosts.nix".source = ./modules/nginx-virtualhosts.nix;
+   environment.etc."nixos/modules/vm.nix".source           = ./modules/vm.nix;
+   environment.etc."nixos/modules/backups.nix".source      = ./modules/backups.nix;
+   ```
+
+2. Remove relative module imports from `services.nix`. Any `./some-module.nix` import inside a module file breaks when evaluated from the Nix store. Import all modules at the top-level `configuration.nix` or `configuration-uefi.nix` using absolute paths (`/etc/nixos/modules/...`) or `builtins.path` references.
+
+3. Rebuild the ISO after fixing, then test the install on a fresh VM before flashing to USB.
+
+### Wrong Boot Configuration Copied by install script (`GRUB error: cannot find a GRUB drive`)
+
+**Symptom:**
+```
+/nix/store/...-grub-install: error: cannot find a GRUB drive for /dev/sda.
+Failed to install bootloader
+```
+After a successful-looking install and first boot, `nixos-rebuild switch` fails with the same GRUB error even though the machine uses UEFI.
+
+**Cause:** `configuration-uefi.nix` has a copy/paste error — it imports `boot-bios.nix` instead of `boot-uefi.nix`. This is easy to miss because the filename difference is one word and older VirtualBox/Hyper-V setups required BIOS mode, so the wrong import was never triggered.
+
+**Fix:** Check the boot import line in `configuration-uefi.nix`:
+```nix
+# Wrong
+"${modulesDir}/boot-bios.nix"  # ← BIOS boot configuration
+
+# Correct
+"${modulesDir}/boot-uefi.nix"  # ← UEFI boot configuration
+```
+Rebuild the ISO after fixing.
+
 ### Build Fails with "Out of Space"
 
 **Symptoms:**
@@ -924,6 +970,63 @@ VMs often use NAT networking (10.0.2.x) or different subnets than your physical 
    - `ens18`, `ens33` (common in VMs)
    - `eth0`, `eth1` (legacy names)
    - `eno1`, `eno2` (onboard ethernet)
+
+## Samba Issues (nixos-unstable)
+
+### `services.samba.extraConfig` and `securityType` No Longer Work
+
+**Symptom:**
+```
+The option definition `services.samba.extraConfig' in `.../timemachine.nix'
+no longer has any effect; please remove it.
+Use services.samba.settings instead.
+```
+
+**Cause:** On nixos-unstable (circa 2025), `services.samba.extraConfig` was removed in favor of structured `services.samba.settings`. The `securityType` top-level option was also removed — security now lives inside `settings.global`.
+
+**Fix:** Migrate your Samba config to the structured format:
+
+```nix
+services.samba = {
+  enable = true;
+  settings = {
+    global = {
+      workgroup = "WORKGROUP";
+      "server string" = "yourhost";
+      "server role" = "standalone server";
+      security = "user";          # was: securityType = "user"
+      "fruit:metadata" = "stream";
+      "fruit:model" = "MacSamba";
+      "fruit:posix_rename" = "yes";
+      "fruit:veto_appledouble" = "no";
+      "fruit:wipe_intentionally_left_blank_rfork" = "yes";
+      "fruit:delete_empty_adfiles" = "yes";
+    };
+    yourshare = {
+      path = "/path/to/share";
+      browseable = "yes";
+      writable = "yes";
+      "valid users" = "someuser";
+    };
+  };
+};
+```
+
+**Note on splitting Samba across modules:** NixOS merges `services.samba.settings` across modules, so you can define the `global` block and the `isos` share in `services.nix` and the `timemachine` share in `timemachine.nix` without conflict — as long as no individual attribute is set to different values in both places (that will cause a conflict error, not a silent merge).
+
+### Duplicate Samba Share Attribute Conflict
+
+**Symptom:**
+```
+error: The option `services.samba.settings.timemachine."fruit:time machine max size"'
+has conflicting definition values:
+- In `.../services.nix': "1500G"
+- In `.../timemachine.nix': "2000G"
+```
+
+**Cause:** The same share or attribute was defined in two different module files with different values. NixOS merges `settings` across modules, but can't resolve conflicts automatically.
+
+**Fix:** Pick one file to own each share completely. Global Samba options and server-level shares (`isos`) belong in `services.nix`. The `timemachine` share, `tmuser`, and directory setup belong in `timemachine.nix`. Remove any duplicate share definitions.
 
 ## NixOS Unstable Channel (Required by Collabora)
 

@@ -60,6 +60,8 @@ This repository has two main branches serving different purposes:
 
 **Services disabled in both branches:**
 - Gitea (Git hosting - configured but disabled)
+- QEMU/libvirt VM host (vm.nix imported but disabled — active on nixos2)
+- Samba Time Machine (timemachine.nix imported but disabled — active on nixos2)
 
 If you clone the repo or use the VM branch, enable services by editing `/etc/nixos/modules/services.nix` and changing `enable = false` to `enable = true`, then run `sudo nixos-rebuild switch`.
 
@@ -186,6 +188,8 @@ See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and conf
   - `nginx-virtualhosts.nix` - Nginx reverse proxy virtual hosts (split out for readability)
   - `monitoring.nix` - Complete monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
   - `backups.nix` - Restic backup configuration
+  - `timemachine.nix` - Samba Time Machine target stub (disabled — primary instance runs on nixos2)
+  - `vm.nix` - QEMU/libvirt VM host stubs (disabled — VM runs on nixos2; included for portability)
   - `networking.nix` - Network and firewall settings
   - `system.nix` - System packages, users, desktop
   - `boot-bios.nix` / `boot-uefi.nix` - Boot configurations
@@ -647,6 +651,8 @@ nixos-config/
 │   ├── nginx-virtualhosts.nix    # Nginx reverse proxy virtual hosts (split out for readability)
 │   ├── monitoring.nix            # Monitoring stack (Prometheus, Grafana, Alertmanager, Loki, Promtail)
 │   ├── backups.nix               # Restic backup configuration (Vaultwarden, Nextcloud DB, Linkwarden, private configs)
+│   ├── timemachine.nix           # Samba Time Machine stub (disabled — runs on nixos2)
+│   ├── vm.nix                    # QEMU/libvirt VM host stubs (disabled — runs on nixos2)
 │   ├── networking.nix            # Network & firewall configuration
 │   ├── system.nix                # System packages, users, desktop, SSH
 │   ├── boot-bios.nix             # BIOS/GRUB boot configuration
