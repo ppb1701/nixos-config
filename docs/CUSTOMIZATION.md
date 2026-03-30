@@ -870,4 +870,3 @@ dns.cache_size = 10000000;
 - **NixOS Options Search:** https://search.nixos.org/options
 - **NixOS Manual:** https://nixos.org/manual/nixos/stable/
 - **Home Manager Options:** https://nix-community.github.io/home-manager/options.html
-- **This repo's issues:** https://github.com/ppb1701/nixos-adguard-home/issues

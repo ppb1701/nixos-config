@@ -234,89 +234,7 @@ chmod +x build-public-iso.sh
 # Come back to fresh public ISO!
 ```
 
-## Method 3: Codeberg Actions (CI/CD)
-
-Fully automated builds on every release.
-
-### Setup
-
-Create `.github/workflows/build-iso.yml`:
-
-```yaml
-name: Build Public ISO
-
-on:
-  release:
-    types: [created]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-
-      - name: Build ISO
-        run: |
-          ./build-iso.sh
-
-      - name: Get ISO path
-        id: iso
-        run: |
-          ISO_PATH=$(find /nix/store -name "*.iso" -type f -mtime -1 | head -n 1)
-          echo "path=$ISO_PATH" >> $GITHUB_OUTPUT
-
-      - name: Upload ISO to Release
-        if: github.event_name == 'release'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ steps.iso.outputs.path }}
-          asset_name: nixos-config-${{ github.event.release.tag_name }}.iso
-          asset_content_type: application/octet-stream
-
-      - name: Upload ISO as Artifact
-        if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
-        with:
-          name: nixos-config-iso
-          path: ${{ steps.iso.outputs.path }}
-```
-
-### Usage
-
-**Create a release:**
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-
-# Go to Codeberg → Releases → Create Release
-# Tag: v1.0.0
-# Title: "Version 1.0.0"
-# Description: "Initial public release"
-# Publish release
-```
-
-Codeberg Actions will:
-1. Automatically build ISO
-2. Upload to release assets
-3. Available for download
-
-**Manual trigger:**
-
-Go to Codeberg → Actions → Build Public ISO → Run workflow
-
-## Method 4: Sanitize Before Building
+## Method 3: Sanitize Before Building
 
 Build on your configured system but remove private data first.
 
@@ -522,7 +440,7 @@ This is where the latest pre-built ISO is available for download.
 
 **Creating New Releases:**
 
-1. Create release on GitHub
+1. Create release on Codeberg
 2. Upload ISO as release asset
 3. Add release notes
 4. Update the release tag if needed
@@ -604,7 +522,6 @@ SHA256: `abc123...`
 # Use one of the methods above
 ./build-public-iso-safe.sh
 # Or use builder VM
-# Or use Codeberg Actions
 
 # Verify before sharing
 ./verify-public-iso.sh
@@ -670,16 +587,6 @@ nixos-config-v1.1.0.iso
 - Verify ISO is valid
 - Check virtualization is enabled in BIOS
 - Try different VM software
-
-### Codeberg Actions Build Fails
-
-**Problem:** CI/CD build fails
-
-**Solution:**
-- Check workflow logs
-- Verify build script works locally
-- Check Nix installation step
-- Ensure sufficient runner resources
 
 ## Getting Help
 

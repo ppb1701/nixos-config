@@ -528,7 +528,7 @@ sudo -u notediscovery bash
 cd /var/lib/notediscovery
 
 # Clone the repository
-git clone https://github.com/ppb1701/NoteDiscovery.git .
+git clone https://codeberg.org/ppb1701/NoteDiscovery.git .
 
 # Create virtual environment
 python3 -m venv venv
