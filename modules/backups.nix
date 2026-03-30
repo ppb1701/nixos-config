@@ -177,26 +177,31 @@ in
   };
 
  systemd.services = {
-    restic-backups-vaultwarden.postStart = ''
-      ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
-      ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
-    '';
+  restic-backups-vaultwarden.postStart = ''
+    ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
+    ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
+  '';
 
-    restic-backups-nextcloud-db.postStart = ''
-      ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
-      ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
-    '';
+  restic-backups-nextcloud-db.postStart = ''
+    ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
+    ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
+  '';
 
-    restic-backups-linkwarden.postStart = ''
-      ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
-      ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
-    '';
+  restic-backups-linkwarden.postStart = ''
+    ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
+    ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
+  '';
 
-    restic-backups-private-configs.postStart = ''
-      ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
-      ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
-    '';
-  };
+  restic-backups-gitea.postStart = ''
+    ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
+    ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
+  '';
+
+  restic-backups-private-configs.postStart = ''
+    ${pkgs.coreutils}/bin/chmod -R g+rX /var/local/backups/restic/
+    ${pkgs.coreutils}/bin/chgrp -R syncthing /var/local/backups/restic/
+  '';
+};
 
   # Create backup directories with proper initial permissions
   systemd.tmpfiles.rules = [
