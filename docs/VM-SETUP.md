@@ -1,7 +1,7 @@
 # VM Setup: iso-builder
 
 The iso-builder VM runs the `vm` branch of
-[nixos-config](https://github.com/ppb1701/nixos-config) and produces custom
+[nixos-config](https://codeberg.org/ppb1701/nixos-config) and produces custom
 NixOS ISOs stored on the 6TB SSD, available via the `isos` Samba share.
 
 ---

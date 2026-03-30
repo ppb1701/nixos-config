@@ -15,7 +15,7 @@ This configuration uses a **temporary, publicly-known password** for initial con
 
 ### Why This Approach?
 
-- Keeps passwords out of public GitHub repositories
+- Keeps passwords out of public Codeberg repositories
 - Allows you to set your own secure password after installation
 - Prevents being locked out of a freshly installed system
 
@@ -210,7 +210,7 @@ See `docs/SERVICES.md` and `docs/NEXTCLOUD-SETUP.md` for detailed setup and conf
 
 **Download the latest ISO:**
 
-https://github.com/ppb1701/nixos-config/releases/tag/nixos
+https://codeberg.org/ppb1701/nixos-config/releases/tag/nixos
 
 **Install:**
 
@@ -227,7 +227,7 @@ https://github.com/ppb1701/nixos-config/releases/tag/nixos
 **Build the ISO:**
 
 ```bash
-git clone https://github.com/ppb1701/nixos-config
+git clone https://codeberg.org/ppb1701/nixos-config
 cd nixos-config
 ./build-iso.sh
 ```
@@ -245,7 +245,7 @@ cd nixos-config
 On an existing NixOS system:
 
 ```bash
-git clone https://github.com/ppb1701/nixos-config /etc/nixos
+git clone https://codeberg.org/ppb1701/nixos-config /etc/nixos
 cd /etc/nixos
 sudo nixos-rebuild switch
 ```
@@ -694,7 +694,7 @@ nixos-config/
 
 ## Building a Custom ISO
 
-> **Note:** A pre-built ISO is available at https://github.com/ppb1701/nixos-config/releases/tag/nixos
+> **Note:** A pre-built ISO is available at https://codeberg.org/ppb1701/nixos-config/releases/tag/nixos
 >
 > Only build your own ISO if you need to customize the configuration before installation.
 
@@ -708,7 +708,7 @@ nixos-config/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/ppb1701/nixos-config
+   git clone https://codeberg.org/ppb1701/nixos-config
    cd nixos-config
    ```
 

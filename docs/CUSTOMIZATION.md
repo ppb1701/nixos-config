@@ -51,7 +51,7 @@ tracker.example.com
 telemetry.example.com
 ```
 
-Host it somewhere accessible (GitHub Gist, your own server, etc.) and add the URL to your configuration.
+Host it somewhere accessible (Codeberg Gist, your own server, etc.) and add the URL to your configuration.
 
 ### Disabling Filter Lists
 

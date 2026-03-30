@@ -53,7 +53,7 @@ The simplest and safest method.
    ```bash
    # In a temporary directory
    cd /tmp
-   git clone https://github.com/ppb1701/nixos-config
+   git clone https://codeberg.org/ppb1701/nixos-config
    cd nixos-config
    ```
 
@@ -97,7 +97,7 @@ The simplest and safest method.
    # Copy to public location
    cp nixos-config.iso ~/public-isos/
 
-   # Or upload to GitHub Releases
+   # Or upload to Codeberg Releases
    # Or share via other means
    ```
 
@@ -170,7 +170,7 @@ ssh builder@iso-builder
 # 3. Clone and build
 cd ~
 rm -rf nixos-config
-git clone https://github.com/ppb1701/nixos-config
+git clone https://codeberg.org/ppb1701/nixos-config
 cd nixos-config
 ./build-iso.sh
 
@@ -194,7 +194,7 @@ VM_NAME="iso-builder"
 VM_USER="builder"
 VM_HOST="iso-builder"
 SHARED_FOLDER="/path/to/shared/folder"
-REPO_URL="https://github.com/ppb1701/nixos-config"
+REPO_URL="https://codeberg.org/ppb1701/nixos-config"
 
 echo "==> Starting builder VM..."
 VBoxManage startvm "$VM_NAME" --type headless
@@ -234,7 +234,7 @@ chmod +x build-public-iso.sh
 # Come back to fresh public ISO!
 ```
 
-## Method 3: GitHub Actions (CI/CD)
+## Method 3: Codeberg Actions (CI/CD)
 
 Fully automated builds on every release.
 
@@ -300,21 +300,21 @@ jobs:
 git tag v1.0.0
 git push origin v1.0.0
 
-# Go to GitHub → Releases → Create Release
+# Go to Codeberg → Releases → Create Release
 # Tag: v1.0.0
 # Title: "Version 1.0.0"
 # Description: "Initial public release"
 # Publish release
 ```
 
-GitHub Actions will:
+Codeberg Actions will:
 1. Automatically build ISO
 2. Upload to release assets
 3. Available for download
 
 **Manual trigger:**
 
-Go to GitHub → Actions → Build Public ISO → Run workflow
+Go to Codeberg → Actions → Build Public ISO → Run workflow
 
 ## Method 4: Sanitize Before Building
 
@@ -512,11 +512,11 @@ chmod +x verify-public-iso.sh
 
 ## Distribution
 
-### GitHub Releases
+### Codeberg Releases
 
 **Current Release Location:**
 
-https://github.com/ppb1701/nixos-config/releases/tag/nixos
+https://codeberg.org/ppb1701/nixos-config/releases/tag/nixos
 
 This is where the latest pre-built ISO is available for download.
 
@@ -556,7 +556,7 @@ A fully declarative NixOS configuration with AdGuard Home, Syncthing, Tailscale,
 
 ### Documentation
 
-See the [README](https://github.com/ppb1701/nixos-config) for complete setup instructions.
+See the [README](https://codeberg.org/ppb1701/nixos-config) for complete setup instructions.
 
 ### Important Security Notice
 
@@ -604,7 +604,7 @@ SHA256: `abc123...`
 # Use one of the methods above
 ./build-public-iso-safe.sh
 # Or use builder VM
-# Or use GitHub Actions
+# Or use Codeberg Actions
 
 # Verify before sharing
 ./verify-public-iso.sh
@@ -634,7 +634,7 @@ nixos-config-v1.1.0.iso
 - Use for personal disaster recovery
 
 **Public ISOs:**
-- GitHub Releases
+- Codeberg Releases
 - Your website
 - Public cloud storage
 - Share freely
@@ -671,7 +671,7 @@ nixos-config-v1.1.0.iso
 - Check virtualization is enabled in BIOS
 - Try different VM software
 
-### GitHub Actions Build Fails
+### Codeberg Actions Build Fails
 
 **Problem:** CI/CD build fails
 
