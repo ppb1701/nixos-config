@@ -5,7 +5,9 @@ New home: https://codeberg.org/ppb1701/nixos-config
 Quick Links
 
 Pre-built ISO: https://codeberg.org/ppb1701/nixos-config/releases/tag/nixos
+
 Blog series: https://blog.ppb1701.com/building-a-resilient-home-server-series
+
 Why the move: https://blog.ppb1701.com/phase-3-profit-the-github-story-97f4616f
 
 
